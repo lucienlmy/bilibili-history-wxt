@@ -1,17 +1,20 @@
 import { defineConfig } from "vite";
-import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import path from "node:path";
 
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
+const root = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
-  root: __dirname,
+  root,
   clearScreen: false,
   server: { port: 1421, strictPort: true },
   envPrefix: ["VITE_", "TAURI_"],
-  // 不要读取仓库根目录的 extends .wxt/tsconfig.json
+  // 不继承仓库根目录的 wxt tsconfig / postcss
   esbuild: {
     tsconfigRaw: "{}",
+  },
+  css: {
+    postcss: path.join(root, "postcss.config.js"),
   },
   build: {
     target: "esnext",
