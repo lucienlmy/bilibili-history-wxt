@@ -146,12 +146,20 @@ function formatDuration(sec) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/** HTML escape without fragile entity literals */
 function escapeHtml(s) {
-  return String(s ?? "")
-    .replaceAll("&", "&").replaceAll("<", "<")
-    .replaceAll(">", ">").replaceAll('"', """);
+  const map = {
+    "&": "\u0026amp;",
+    "<": "\u0026lt;",
+    ">": "\u0026gt;",
+    '"': "\u0026quot;",
+    "'": "\u0026#39;",
+  };
+  return String(s ?? "").replace(/[&<>"']/g, (ch) => map[ch]);
 }
-function escapeAttr(s) { return escapeHtml(s).replaceAll("'", "&#39;"); }
+function escapeAttr(s) {
+  return escapeHtml(s);
+}
 
 function gridClass() {
   if (cols === "3") return "grid cols-3";
@@ -320,7 +328,7 @@ async function openBackup() {
     pack = normalizeBackup(JSON.parse(text));
     sourceName = String(path).split(/[/\\]/).pop() || String(path);
     activeFolderId = null;
-    fileMeta.textContent = `${sourceName}\n历史 ${pack.history.length} · 收藏 ${pack.favFolders.length} · 音乐 ${pack.likedMusic.length}`;
+    fileMeta.textContent = sourceName + "\n历史 " + pack.history.length + " · 收藏 " + pack.favFolders.length + " · 音乐 " + pack.likedMusic.length;
     render();
   } catch (err) {
     const input = document.createElement("input");
@@ -333,7 +341,7 @@ async function openBackup() {
         pack = normalizeBackup(JSON.parse(await file.text()));
         sourceName = file.name;
         activeFolderId = null;
-        fileMeta.textContent = `${sourceName}\n历史 ${pack.history.length} · 收藏 ${pack.favFolders.length} · 音乐 ${pack.likedMusic.length}`;
+        fileMeta.textContent = sourceName + "\n历史 " + pack.history.length + " · 收藏 " + pack.favFolders.length + " · 音乐 " + pack.likedMusic.length;
         render();
       } catch (e) {
         fileMeta.textContent = "加载失败：" + (e?.message || String(e));
