@@ -100,9 +100,7 @@ const ICONS = {
 };
 
 function buildNav() {
-  const childActiveParent = (it) =>
-    (it.children || []).some((c) => c.id === page);
-
+  const childActiveParent = (it) => (it.children || []).some((c) => c.id === page);
   navEl.innerHTML = MENUS.map((g) => {
     const items = g.items.map((it) => {
       if (it.children && it.children.length) {
@@ -718,5 +716,27 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault(); searchEl?.focus();
   }
 });
+
+async function openExternal(url) {
+  if (!url || url === "#" || url.startsWith("javascript:")) return;
+  try {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(url);
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
+contentEl.addEventListener("click", (e) => {
+  const a = e.target.closest("a[href]");
+  if (!a || e.defaultPrevented) return;
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const href = a.getAttribute("href") || "";
+  if (href.startsWith("http://") || href.startsWith("https://")) {
+    e.preventDefault();
+    void openExternal(href);
+  }
+});
+
 buildNav();
 render();
