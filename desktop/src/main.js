@@ -582,7 +582,6 @@ function render() {
   pageTitle.textContent = meta[0];
   pageDesc.textContent = meta[1];
   buildNav();
-  // 二级页面（设置/云同步等）无备份也可展示界面壳
   if (!pack && !SECONDARY_PAGES.has(page) && page !== "about") {
     renderEmpty();
     updateClearBtn();
@@ -642,7 +641,6 @@ function resetAndRender() {
   render();
 }
 
-// events
 document.getElementById("btn-open-2")?.addEventListener("click", () => void openBackup());
 document.getElementById("btn-refresh")?.addEventListener("click", () => render());
 document.getElementById("btn-collapse")?.addEventListener("click", () => {
@@ -740,25 +738,45 @@ window.addEventListener("keydown", (e) => {
 async function openExternal(url) {
   if (!url || url === "#" || url.startsWith("javascript:")) return;
   try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("open_external", { url });
+    return;
+  } catch (err) {
+    console.warn("[openExternal] invoke failed", err);
+  }
+  try {
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     await openUrl(url);
-  } catch {
+    return;
+  } catch (err) {
+    console.warn("[openExternal] plugin-opener failed", err);
+  }
+  try {
     window.open(url, "_blank", "noopener,noreferrer");
+  } catch (err) {
+    console.error("[openExternal] all methods failed", err);
   }
 }
 
-contentEl.addEventListener("click", (e) => {
-  const a = e.target.closest("a[href]");
-  if (!a || e.defaultPrevented) return;
-  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-  const href = a.getAttribute("href") || "";
-  if (href.startsWith("http://") || href.startsWith("https://")) {
-    e.preventDefault();
-    void openExternal(href);
+function pickHttpUrl(el) {
+  if (!el) return "";
+  const a = el.closest?.("a[href]") || (el.tagName === "A" ? el : null);
+  if (a) {
+    const href = a.getAttribute("href") || "";
+    if (href.startsWith("http://") || href.startsWith("https://")) return href;
   }
-});
+  return "";
+}
 
-// 供 secondary.js 注册设置/云同步等二级页 UI
+document.addEventListener("click", (e) => {
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const url = pickHttpUrl(e.target);
+  if (!url) return;
+  e.preventDefault();
+  e.stopPropagation();
+  void openExternal(url);
+}, true);
+
 globalThis.__bili = {
   get contentEl() { return contentEl; },
   get pageCount() { return pageCount; },
