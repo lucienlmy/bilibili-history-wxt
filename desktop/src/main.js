@@ -237,7 +237,7 @@ function clearFilters() {
 
 function gridClass() {
   if (cols === "3") return "grid cols-3";
-  if (cols === "4") return "grid cols--4";
+  if (cols === "4") return "grid cols-4";
   if (cols === "5") return "grid cols-5";
   return "grid";
 }
