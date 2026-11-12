@@ -11,7 +11,10 @@
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <button type="button" class="brand" id="brand-home" title="返回历史记录">
-            <span class="brand-logo"><span class="brand-logo-gloss"></span><span>B</span></span>
+            <span class="brand-logo"><span class="brand-logo-gloss"></span><span class="brand-letter">B</span></span>
+            <span class="brand-expand-ico" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16"/><path d="M12 4v16"/></svg>
+            </span>
             <span class="brand-text">无限历史记录</span>
           </button>
           <button type="button" class="icon-btn" id="btn-collapse" title="收起侧边栏" aria-label="收起侧边栏">
@@ -62,37 +65,48 @@
                   <svg class="search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
                   <input id="search" type="search" placeholder="搜索标题 / UP 主 / BV 号…" />
                 </div>
-                <select id="search-kind">
-                  <option value="all">全部字段</option>
-                  <option value="title">标题</option>
-                  <option value="up">UP 主</option>
-                  <option value="bvid">BV 号</option>
-                </select>
+                <div class="select-wrap">
+                  <select id="search-kind">
+                    <option value="all">全部字段</option>
+                    <option value="title">标题</option>
+                    <option value="up">UP 主</option>
+                    <option value="bvid">BV 号</option>
+                  </select>
+                </div>
                 <div class="segment" id="display-mode" title="展示模式">
                   <button type="button" data-mode="content" class="active">按内容</button>
                   <button type="button" data-mode="visit">按观看</button>
                 </div>
-                <select id="type-filter">
-                  <option value="all">全部分类</option>
-                  <option value="archive">视频</option>
-                  <option value="live">直播</option>
-                  <option value="pgc">番剧</option>
-                  <option value="article">专栏</option>
-                  <option value="cheese">课堂</option>
-                </select>
-                <input id="date-start" type="date" title="开始日期" />
-                <input id="date-end" type="date" title="结束日期" />
-                <select id="sort">
-                  <option value="time-desc">时间倒序</option>
-                  <option value="time-asc">时间正序</option>
-                  <option value="title">标题</option>
-                </select>
-                <select id="cols">
-                  <option value="auto">自动列数</option>
-                  <option value="3">3 列</option>
-                  <option value="4" selected>4 列</option>
-                  <option value="5">5 列</option>
-                </select>
+                <div class="select-wrap">
+                  <select id="type-filter">
+                    <option value="all">全部分类</option>
+                    <option value="archive">视频</option>
+                    <option value="live">直播</option>
+                    <option value="pgc">番剧</option>
+                    <option value="article">专栏</option>
+                    <option value="cheese">课堂</option>
+                  </select>
+                </div>
+                <div class="date-range">
+                  <input id="date-start" type="date" title="开始日期" />
+                  <span class="date-sep">至</span>
+                  <input id="date-end" type="date" title="结束日期" />
+                </div>
+                <div class="select-wrap">
+                  <select id="sort">
+                    <option value="time-desc">时间倒序</option>
+                    <option value="time-asc">时间正序</option>
+                    <option value="title">标题</option>
+                  </select>
+                </div>
+                <div class="select-wrap">
+                  <select id="cols">
+                    <option value="auto">自动列数</option>
+                    <option value="3">3 列</option>
+                    <option value="4" selected>4 列</option>
+                    <option value="5">5 列</option>
+                  </select>
+                </div>
                 <button type="button" class="clear-filters" id="btn-clear-filters" hidden>清除筛选</button>
               </div>
             </div>
