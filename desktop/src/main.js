@@ -13,6 +13,7 @@ let dateEnd = "";
 let sourceName = "";
 let collapsed = false;
 let filtersOpen = true;
+let displayMode = "content";
 let currentPage = 1;
 const PAGE_SIZE = 100;
 
@@ -264,7 +265,12 @@ function renderPagination(total) {
 
 function getFilteredHistory() {
   const q = search.trim().toLowerCase();
-  let items = pack?.history || [];
+  let items;
+  if (displayMode === "visit" && (pack?.historyEvents || []).length) {
+    items = pack.historyEvents.slice();
+  } else {
+    items = (pack?.history || []).slice();
+  }
   if (typeFilter !== "all") items = items.filter((x) => x.business === typeFilter);
   items = items.filter((x) => matchText(x, q) && inDateRange(x.view_at));
   return sortItems(items, "view_at");
@@ -273,7 +279,11 @@ function getFilteredHistory() {
 function renderHistory() {
   const items = getFilteredHistory();
   const totalAll = pack?.history?.length || 0;
-  pageCount.textContent = totalAll + " 个内容 · 筛选 " + items.length;
+  const unit = displayMode === "visit" ? "次观看" : "个内容";
+  const totalBase = displayMode === "visit" && (pack?.historyEvents || []).length
+    ? pack.historyEvents.length
+    : totalAll;
+  pageCount.textContent = totalBase + " " + unit + " · 筛选 " + items.length;
   if (!items.length) {
     contentEl.innerHTML = `<div class="empty">${search || typeFilter !== "all" || dateStart || dateEnd ? "没有找到匹配的历史记录" : "备份中没有历史记录"}</div>`;
     paginationEl.hidden = true;
@@ -338,6 +348,24 @@ function renderFavorites() {
   renderPagination(items.length);
 }
 
+function musicRow(item) {
+  const bvid = item.bvid || "";
+  const url = bvid ? "https://www.bilibili.com/video/" + bvid : "#";
+  const mid = item.mid || 0;
+  return `<div class="music-row">
+    <img class="music-cover" src="${escapeAttr(item.pic || "")}" alt="" loading="lazy" referrerpolicy="no-referrer"
+      onerror="this.style.opacity='.2'" />
+    <div class="music-body">
+      <h3 class="music-title"><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || "未命名")}</a></h3>
+      <div class="music-sub">
+        <a href="https://space.bilibili.com/${mid}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.author || "-")}</a>
+        <span>收藏于 ${fmtTime(item.added_at)}</span>
+        <span>${escapeHtml(bvid)}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderMusic() {
   const q = search.trim().toLowerCase();
   let items = pack?.likedMusic || [];
@@ -351,9 +379,7 @@ function renderMusic() {
   }
   const start = (currentPage - 1) * PAGE_SIZE;
   const shown = items.slice(start, start + PAGE_SIZE);
-  contentEl.innerHTML = `<div class="${gridClass()}">${shown.map((item) => resourceCard({
-    ...item, cover: item.pic, upper: { name: item.author }, fav_time: item.added_at,
-  })).join("")}</div>`;
+  contentEl.innerHTML = `<div class="music-list">${shown.map(musicRow).join("")}</div>`;
   renderPagination(items.length);
 }
 
@@ -374,7 +400,7 @@ function renderAbout() {
   paginationEl.hidden = true;
   contentEl.innerHTML = `<div class="about">
     <h2>桌面只读查看器</h2>
-    <p>界面按扩展主布局对齐：侧边栏分组、历史卡片网格、收藏夹左右分栏、观看进度条。数据<strong>仅来自</strong>扩展导出的备份 JSON。</p>
+    <p>界面按扩展主布局对齐：侧边栏分组、历史卡片网格、收藏夹左右分栏、音乐横排列表、观看进度条。数据<strong>仅来自</strong>扩展导出的备份 JSON。</p>
     <ul>
       <li>兼容 formatVersion: 2 完整备份包</li>
       <li>兼容旧版顶层 HistoryItem[]</li>
@@ -490,6 +516,19 @@ window.addEventListener("scroll", () => {
   scrollTopBtn.hidden = window.scrollY < 400;
 });
 scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+
+const displayModeEl = document.getElementById("display-mode");
+if (displayModeEl) {
+  displayModeEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-mode]");
+    if (!btn) return;
+    displayMode = btn.getAttribute("data-mode") || "content";
+    displayModeEl.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("active", b.getAttribute("data-mode") === displayMode);
+    });
+    resetAndRender();
+  });
+}
 
 buildNav();
 render();
