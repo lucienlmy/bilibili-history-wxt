@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bilibili 无限历史记录</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo">B</div>
+          <div>
+            <div class="brand-title">无限历史记录</div>
+            <div class="brand-sub">桌面只读 · 备份查看</div>
+          </div>
+        </div>
+        <nav class="nav" id="nav">
+          <button type="button" data-page="history" class="nav-item active">历史记录</button>
+          <button type="button" data-page="favorites" class="nav-item">收藏夹</button>
+          <button type="button" data-page="music" class="nav-item">喜欢的音乐</button>
+          <button type="button" data-page="collections" class="nav-item">订阅合集</button>
+          <button type="button" data-page="about" class="nav-item">关于</button>
+        </nav>
+        <div class="sidebar-foot">
+          <button type="button" id="btn-open" class="btn primary block">打开备份 JSON</button>
+          <p id="file-meta" class="file-meta">尚未加载备份</p>
+        </div>
+      </aside>
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1 id="page-title">历史记录</h1>
+            <p id="page-desc" class="muted">从扩展导出的备份中浏览</p>
+          </div>
+          <div class="top-actions">
+            <input id="search" type="search" placeholder="搜索标题 / UP / BV…" />
+            <select id="sort">
+              <option value="time-desc">时间倒序</option>
+              <option value="time-asc">时间正序</option>
+              <option value="title">标题</option>
+            </select>
+          </div>
+        </header>
+        <section id="content" class="content"></section>
+      </main>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
