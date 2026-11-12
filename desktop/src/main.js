@@ -3,6 +3,7 @@
 let pack = null;
 let page = "history";
 let activeFolderId = null;
+let activeCollectionId = null;
 let search = "";
 let searchKind = "all";
 let sort = "time-desc";
@@ -188,6 +189,39 @@ function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (ch) => map[ch]);
 }
 function escapeAttr(s) { return escapeHtml(s); }
+
+function skeletonHtml() {
+  const cards = Array.from({ length: 8 }, () =>
+    `<div class="skeleton-card"><div class="skeleton-cover"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>`
+  ).join("");
+  return `<div class="skeleton-grid">${cards}</div>`;
+}
+
+function hasActiveFilters() {
+  return Boolean(search.trim() || dateStart || dateEnd) || typeFilter !== "all" || searchKind !== "all" || sort !== "time-desc";
+}
+
+function updateClearBtn() {
+  const btn = document.getElementById("btn-clear-filters");
+  if (!btn) return;
+  btn.hidden = !(page === "history" || page === "favorites" || page === "music") || !hasActiveFilters();
+}
+
+function clearFilters() {
+  search = "";
+  searchKind = "all";
+  typeFilter = "all";
+  sort = "time-desc";
+  dateStart = "";
+  dateEnd = "";
+  if (searchEl) searchEl.value = "";
+  if (searchKindEl) searchKindEl.value = "all";
+  if (typeEl) typeEl.value = "all";
+  if (sortEl) sortEl.value = "time-desc";
+  if (dateStartEl) dateStartEl.value = "";
+  if (dateEndEl) dateEndEl.value = "";
+  resetAndRender();
+}
 
 function gridClass() {
   if (cols === "3") return "grid cols-3";
@@ -384,15 +418,56 @@ function renderMusic() {
 }
 
 function renderCollections() {
-  const colsList = pack?.subscribedCollections || [];
+  const colsList = (pack?.subscribedCollections || []).slice();
+  const resources = pack?.subscribedCollectionResources || [];
+  if (!colsList.length) {
+    pageCount.textContent = "0 个合集";
+    paginationEl.hidden = true;
+    contentEl.innerHTML = `<div class="empty">备份中没有订阅合集</div>`;
+    return;
+  }
+
+  if (activeCollectionId != null) {
+    const col = colsList.find((c) => Number(c.id) === Number(activeCollectionId));
+    const q = search.trim().toLowerCase();
+    let items = resources.filter((r) =>
+      Number(r.collection_id ?? r.season_id ?? r.sid) === Number(activeCollectionId)
+    );
+    if (!items.length && resources.length && colsList.length === 1) {
+      items = resources.slice();
+    }
+    items = items.filter((x) => matchText(x, q));
+    items = sortItems(items, "fav_time");
+    pageCount.textContent = (col?.title || "合集") + " · " + items.length + " 项";
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const shown = items.slice(start, start + PAGE_SIZE);
+    contentEl.innerHTML = `<button type="button" class="collection-back" id="back-collections">← 返回合集列表</button>
+      <div class="${gridClass()}">${shown.map(resourceCard).join("") || ""}</div>
+      ${!items.length ? `<div class="empty">该合集没有资源数据</div>` : ""}`;
+    document.getElementById("back-collections")?.addEventListener("click", () => {
+      activeCollectionId = null;
+      currentPage = 1;
+      render();
+    });
+    renderPagination(items.length);
+    return;
+  }
+
   pageCount.textContent = colsList.length + " 个合集";
   paginationEl.hidden = true;
-  contentEl.innerHTML = colsList.length
-    ? `<div class="folder-grid">${colsList.map((c) =>
-        `<div class="folder"><h3>${escapeHtml(c.title || "未命名合集")}</h3>
-         <p>${Number(c.media_count || 0)} 个内容 · ${escapeHtml(c.upper?.name || "")}</p></div>`
-      ).join("")}</div>`
-    : `<div class="empty">备份中没有订阅合集</div>`;
+  contentEl.innerHTML = `<div class="folder-grid">${colsList.map((c) =>
+    `<button type="button" class="folder" data-collection="${c.id}">
+      <h3>${escapeHtml(c.title || "未命名合集")}</h3>
+      <p>${Number(c.media_count || 0)} 个内容 · ${escapeHtml(c.upper?.name || c.author || "")}</p>
+    </button>`
+  ).join("")}</div>`;
+  contentEl.querySelectorAll("[data-collection]").forEach((el) => {
+    el.addEventListener("click", () => {
+      activeCollectionId = el.getAttribute("data-collection");
+      currentPage = 1;
+      render();
+    });
+  });
 }
 
 function renderAbout() {
@@ -414,7 +489,12 @@ function renderAbout() {
 function renderEmpty() {
   pageCount.textContent = "0";
   paginationEl.hidden = true;
-  contentEl.innerHTML = `<div class="empty"><p>请打开扩展导出的备份 JSON</p><p>支持 bilibili-history-*.json</p></div>`;
+  contentEl.innerHTML = `<div class="empty">
+    <p>请打开扩展导出的备份 JSON</p>
+    <p>支持 bilibili-history-*.json</p>
+    <p><button type="button" class="empty-cta" id="empty-open">打开备份</button></p>
+  </div>`;
+  document.getElementById("empty-open")?.addEventListener("click", () => void openBackup());
 }
 
 function render() {
@@ -428,6 +508,7 @@ function render() {
   else if (page === "music") renderMusic();
   else if (page === "collections") renderCollections();
   else renderAbout();
+  updateClearBtn();
 }
 
 async function openBackup() {
@@ -436,11 +517,14 @@ async function openBackup() {
     const { readTextFile } = await import("@tauri-apps/plugin-fs");
     const selected = await open({ multiple: false, filters: [{ name: "JSON", extensions: ["json"] }] });
     if (!selected) return;
+    contentEl.innerHTML = skeletonHtml();
+    paginationEl.hidden = true;
     const path = typeof selected === "string" ? selected : selected.path || selected;
     const text = await readTextFile(path);
     pack = normalizeBackup(JSON.parse(text));
     sourceName = String(path).split(/[/\\]/).pop() || String(path);
     activeFolderId = null;
+    activeCollectionId = null;
     currentPage = 1;
     fileMeta.textContent = sourceName + "\n历史 " + pack.history.length + " · 收藏 " + pack.favFolders.length + " · 音乐 " + pack.likedMusic.length;
     render();
@@ -452,9 +536,12 @@ async function openBackup() {
       const file = input.files?.[0];
       if (!file) return;
       try {
+        contentEl.innerHTML = skeletonHtml();
+        paginationEl.hidden = true;
         pack = normalizeBackup(JSON.parse(await file.text()));
         sourceName = file.name;
         activeFolderId = null;
+        activeCollectionId = null;
         currentPage = 1;
         fileMeta.textContent = sourceName + "\n历史 " + pack.history.length + " · 收藏 " + pack.favFolders.length + " · 音乐 " + pack.likedMusic.length;
         render();
@@ -476,6 +563,7 @@ navEl.addEventListener("click", (e) => {
   if (!btn) return;
   page = btn.getAttribute("data-page");
   activeFolderId = null;
+  activeCollectionId = null;
   currentPage = 1;
   render();
 });
@@ -496,7 +584,9 @@ document.getElementById("btn-toggle-filters").addEventListener("click", () => {
   filtersEl.classList.toggle("collapsed", !filtersOpen);
   document.getElementById("btn-toggle-filters").setAttribute("aria-expanded", String(filtersOpen));
 });
-document.getElementById("brand-home").addEventListener("click", () => { page = "history"; activeFolderId = null; currentPage = 1; render(); });
+document.getElementById("brand-home").addEventListener("click", () => {
+  page = "history"; activeFolderId = null; activeCollectionId = null; currentPage = 1; render();
+});
 document.getElementById("btn-collapse").addEventListener("click", () => {
   collapsed = !collapsed;
   sidebar.classList.toggle("collapsed", collapsed);
@@ -529,6 +619,17 @@ if (displayModeEl) {
     resetAndRender();
   });
 }
+
+document.getElementById("btn-clear-filters")?.addEventListener("click", clearFilters);
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+    e.preventDefault();
+    searchEl?.focus();
+  }
+});
 
 buildNav();
 render();
