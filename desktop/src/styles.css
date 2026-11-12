@@ -189,12 +189,41 @@ html.dark body { background: #0e0f10; }
 .segment button.active {
   background: var(--brand-soft); color: var(--brand-strong); font-weight: 600;
 }
+.clear-filters {
+  height: 2.5rem; border-radius: 0.5rem; border: 1px solid var(--line);
+  background: var(--paper); color: var(--ink-muted); padding: 0 0.75rem;
+  font-size: 0.8rem; cursor: pointer;
+}
+.clear-filters:hover { color: var(--brand-strong); border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); }
+.clear-filters[hidden] { display: none; }
 .content {
   max-width: 1600px; margin: 0 auto; padding: 1.25rem 1.5rem 1rem;
 }
 .empty {
   margin-top: 5rem; text-align: center; color: var(--ink-muted); font-size: 0.9rem;
 }
+.empty-cta {
+  margin-top: 1rem; display: inline-flex; align-items: center; gap: 0.4rem;
+  height: 2.5rem; border-radius: 0.5rem; border: 0; padding: 0 1rem;
+  background: var(--brand); color: #fff; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+}
+.empty-cta:hover { background: var(--brand-strong); }
+.skeleton-grid {
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 1100px) { .skeleton-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 800px) { .skeleton-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.skeleton-card {
+  overflow: hidden; border-radius: 0.75rem; border: 1px solid var(--line); background: var(--paper);
+}
+.skeleton-cover { aspect-ratio: 16/9; background: var(--wash); animation: pulse 1.2s ease-in-out infinite; }
+.skeleton-line {
+  height: 0.85rem; border-radius: 0.35rem; background: var(--wash);
+  animation: pulse 1.2s ease-in-out infinite; margin: 0.55rem 0.875rem;
+}
+.skeleton-line.short { width: 45%; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 .grid {
   display: grid; gap: 1rem;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -281,6 +310,11 @@ html.dark body { background: #0e0f10; }
 .folder:hover { border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); }
 .folder h3 { margin: 0 0 0.35rem; font-size: 0.9rem; }
 .folder p { margin: 0; font-size: 0.75rem; color: var(--ink-muted); }
+.collection-back {
+  margin-bottom: 0.85rem; border: 1px solid var(--line); background: var(--paper);
+  border-radius: 0.5rem; padding: 0.45rem 0.75rem; font-size: 0.8rem; cursor: pointer; color: var(--ink-soft);
+}
+.collection-back:hover { border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); color: var(--brand-strong); }
 .music-list { display: flex; flex-direction: column; gap: 0.85rem; max-width: 72rem; margin: 0 auto; }
 .music-row {
   display: flex; gap: 1rem; align-items: center;
