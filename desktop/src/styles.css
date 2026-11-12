@@ -111,6 +111,7 @@ body {
 .btn-open:hover { background: var(--brand-strong); }
 .file-meta {
   margin: 0; font-size: 11px; color: var(--ink-muted); line-height: 1.4; word-break: break-all;
+  white-space: pre-line;
 }
 .foot-row { display: flex; align-items: center; justify-content: space-between; }
 .ver { font-size: 12px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
@@ -119,38 +120,45 @@ body {
   transition: margin .2s ease;
 }
 .sidebar.collapsed ~ .main-wrap { margin-left: var(--sidebar-w-collapsed); }
-.page { min-height: 100vh; }
+.page { min-height: 100vh; background: color-mix(in srgb, var(--wash) 70%, transparent); padding-bottom: 2.5rem; }
 .toolbar {
   border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
   background: color-mix(in srgb, var(--paper) 95%, transparent);
   backdrop-filter: blur(12px);
 }
 .toolbar.sticky { position: sticky; top: 0; z-index: 30; }
-.toolbar-top, .filters {
-  max-width: 1600px; margin: 0 auto; padding: 1rem 1.5rem;
-}
+.toolbar-inner { max-width: 1600px; margin: 0 auto; padding: 1rem 1.5rem; }
 .toolbar-top {
   display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem;
 }
+.title-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.75rem; }
 .toolbar-title h1 {
-  margin: 0; display: inline; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.02em;
+  margin: 0; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.02em;
 }
 .count {
-  margin-left: 0.75rem; font-size: 0.875rem; color: var(--ink-muted); font-variant-numeric: tabular-nums;
+  font-size: 0.875rem; color: var(--ink-muted); font-variant-numeric: tabular-nums;
 }
 .sub { margin: 0.25rem 0 0; font-size: 0.875rem; color: var(--ink-muted); }
-.toolbar-actions { display: flex; gap: 0.5rem; }
+.toolbar-actions { display: flex; gap: 0.5rem; align-items: center; }
 .btn {
   height: 2.5rem; border-radius: 0.5rem; border: 1px solid var(--line);
   background: var(--paper); color: var(--ink-soft); padding: 0 0.875rem;
   font-size: 0.875rem; font-weight: 500; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
 }
+.btn.icon { width: 2.5rem; padding: 0; }
 .btn.primary {
   border-color: var(--brand); background: var(--brand); color: #fff;
 }
 .btn.primary:hover { background: var(--brand-strong); }
+.btn:hover { border-color: color-mix(in srgb, var(--brand) 25%, var(--line)); }
 .filters {
-  display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; padding-top: 0;
+  display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+  margin-top: 1rem; transition: opacity .2s, margin .2s, max-height .2s;
+  max-height: 200px; overflow: hidden;
+}
+.filters.collapsed {
+  max-height: 0; margin-top: 0; opacity: 0; pointer-events: none;
 }
 .search-wrap {
   position: relative; flex: 1; min-width: 220px; max-width: 420px;
@@ -159,20 +167,17 @@ body {
   position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%);
   color: var(--ink-faint); pointer-events: none;
 }
-#search {
-  width: 100%; height: 2.5rem; border: 1px solid var(--line); border-radius: 0.5rem;
-  padding: 0 0.75rem 0 2.25rem; background: var(--paper); color: var(--ink); font-size: 0.875rem;
-}
-#search:focus, select:focus {
-  outline: none; border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
-}
-select {
+#search, select, input[type="date"] {
   height: 2.5rem; border: 1px solid var(--line); border-radius: 0.5rem;
   padding: 0 0.75rem; background: var(--paper); color: var(--ink); font-size: 0.875rem;
 }
+#search { width: 100%; padding-left: 2.25rem; }
+#search:focus, select:focus, input[type="date"]:focus {
+  outline: none; border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
+}
 .content {
-  max-width: 1600px; margin: 0 auto; padding: 1.25rem 1.5rem 2.5rem;
+  max-width: 1600px; margin: 0 auto; padding: 1.25rem 1.5rem 1rem;
 }
 .empty {
   margin-top: 5rem; text-align: center; color: var(--ink-muted); font-size: 0.9rem;
@@ -232,6 +237,28 @@ select {
 .card-meta a { color: inherit; text-decoration: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-meta a:hover { color: var(--brand-strong); }
 .card-meta time { flex-shrink: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fav-layout { display: flex; gap: 0; min-height: calc(100vh - 9rem); margin: -1.25rem -1.5rem; }
+.fav-folders {
+  width: 16rem; flex-shrink: 0; border-right: 1px solid var(--line);
+  background: var(--paper); overflow: auto;
+}
+.fav-folders-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 1rem; border-bottom: 1px solid var(--line); font-weight: 700; font-size: 1rem;
+}
+.fav-folder-item {
+  width: 100%; border: 0; background: transparent; text-align: left;
+  padding: 0.75rem 1rem; cursor: pointer; color: var(--ink);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+.fav-folder-item:hover { background: var(--wash); }
+.fav-folder-item.active {
+  background: var(--brand-soft); color: var(--brand-strong);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.fav-folder-item h3 { margin: 0 0 0.2rem; font-size: 0.875rem; font-weight: 600; }
+.fav-folder-item p { margin: 0; font-size: 0.75rem; color: var(--ink-muted); }
+.fav-main { flex: 1; min-width: 0; padding: 1rem 1.25rem; overflow: auto; }
 .folder-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .folder {
   border: 1px solid var(--line); border-radius: 0.75rem; background: var(--paper);
@@ -240,13 +267,30 @@ select {
 .folder:hover { border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); }
 .folder h3 { margin: 0 0 0.35rem; font-size: 0.9rem; }
 .folder p { margin: 0; font-size: 0.75rem; color: var(--ink-muted); }
-.back-btn {
-  margin-bottom: 0.75rem; border: 1px solid var(--line); background: var(--paper);
-  border-radius: 0.5rem; padding: 0.45rem 0.75rem; font-size: 0.8rem; cursor: pointer; color: var(--ink-soft);
+.pagination {
+  max-width: 1600px; margin: 0 auto; padding: 0.5rem 1.5rem 1.5rem;
+  display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: center;
 }
+.pagination button {
+  min-width: 2.25rem; height: 2.25rem; border-radius: 0.5rem; border: 1px solid var(--line);
+  background: var(--paper); color: var(--ink-soft); cursor: pointer; font-size: 0.8rem;
+}
+.pagination button.active {
+  border-color: var(--brand); background: var(--brand); color: #fff;
+}
+.pagination button:disabled { opacity: 0.45; cursor: not-allowed; }
+.pagination .pg-info { font-size: 0.8rem; color: var(--ink-muted); margin: 0 0.5rem; }
 .about {
   max-width: 40rem; border: 1px solid var(--line); border-radius: 1rem;
   background: var(--paper); padding: 1.25rem 1.5rem;
 }
 .about h2 { margin: 0 0 0.5rem; font-size: 1rem; }
 .about p, .about li { color: var(--ink-muted); font-size: 0.875rem; line-height: 1.6; }
+.scroll-top {
+  position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 50;
+  width: 2.75rem; height: 2.75rem; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--paper); color: var(--ink-soft); cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  display: grid; place-items: center;
+}
+.scroll-top:hover { color: var(--brand-strong); border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); }
