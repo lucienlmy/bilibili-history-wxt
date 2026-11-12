@@ -1,4 +1,21 @@
 /** Secondary page UI shells for desktop read-only viewer */
+
+const PREF_KEY = "bili-desktop-prefs";
+
+function loadPrefs() {
+  try {
+    return JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function savePrefs(patch) {
+  const next = { ...loadPrefs(), ...patch };
+  localStorage.setItem(PREF_KEY, JSON.stringify(next));
+  return next;
+}
+
 function bootSecondary() {
   const R = globalThis.__BILI_PAGE_RENDERERS || (globalThis.__BILI_PAGE_RENDERERS = {});
   const api = () => globalThis.__bili;
@@ -8,52 +25,165 @@ function bootSecondary() {
   }
   const g = () => api();
   const pageShellNote = (text) => `<div class="note-banner">${text}</div>`;
-  const settingRow = (title, desc, controlHtml, disabled = true) =>
+  const settingRow = (title, desc, controlHtml, disabled = false) =>
     `<div class="setting-card${disabled ? " is-disabled" : ""}">
     <div class="setting-card-text"><h3>${title}</h3><p>${desc}</p></div>
     <div class="setting-card-ctrl">${controlHtml}</div>
   </div>`;
 
   R.settings = function () {
-    const { contentEl, pageCount, paginationEl, pack, sourceName, cols, PAGE_SIZE, colsEl, escapeHtml, openBackup } = g();
+    const {
+      contentEl, pageCount, paginationEl, pack, sourceName, cols, PAGE_SIZE, colsEl,
+      escapeHtml, openBackup, render,
+    } = g();
     paginationEl.hidden = true;
     pageCount.textContent = "";
+    const prefs = loadPrefs();
     const hist = pack?.history?.length || 0;
     const visits = pack?.historyEvents?.length || 0;
     const favs = pack?.favFolders?.length || 0;
     const music = pack?.likedMusic?.length || 0;
+    const syncInterval = prefs.syncInterval ?? 30;
+    const isSyncDelete = prefs.isSyncDelete !== false;
+    const isSyncDeleteFromBilibili = prefs.isSyncDeleteFromBilibili !== false;
+    const dateMode = prefs.dateSelectionMode || "range";
+    const loadMode = prefs.historyLoadMode || "pagination";
+    const hiddenMenus = new Set(prefs.hiddenMenus || []);
+
+    const menuOptions = [
+      ["ai", "AI探索"],
+      ["cloud", "云同步"],
+      ["video-backup", "视频备份"],
+      ["music-group", "听歌"],
+      ["feedback", "反馈"],
+      ["reward", "赞赏"],
+    ];
+
     contentEl.innerHTML = `
-  ${pageShellNote("桌面只读版：视图相关项可改；同步 / 清理 / 扩展存储等仅展示界面，不生效。")}
+  ${pageShellNote("桌面版设置会写入本机 localStorage。与 B 站同步、清空扩展库等操作在桌面端不可用，界面按扩展原版还原。")}
   <div class="settings-grid">
     <section class="settings-col">
       <h2 class="settings-col-title">数据与存储管理</h2>
       ${settingRow("当前备份", sourceName ? escapeHtml(sourceName) : "尚未加载", `<button type="button" class="btn primary" id="set-open">打开备份</button>`, false)}
-      ${settingRow("本地数据概览", `历史 ${hist} · 观看事件 ${visits} · 收藏夹 ${favs} · 音乐 ${music}`, `<span class="chip">只读</span>`)}
-      ${settingRow("首次引导", "扩展内可重新查看历史记录和备份介绍", `<button type="button" class="btn soft" disabled>重新查看</button>`)}
-      ${settingRow("本地存储保护", "扩展检查 IndexedDB 持久化；桌面版使用打开的 JSON 文件", `<span class="chip ok">文件模式</span>`)}
-      ${settingRow("恢复出厂设置", "扩展可清空应用数据；桌面版请直接关闭或重新打开备份", `<button type="button" class="btn danger" disabled>恢复出厂</button>`)}
+      ${settingRow("本地数据概览", `历史内容 ${hist} · 观看事件 ${visits} · 收藏夹 ${favs} · 音乐 ${music}`, `<span class="chip ok">JSON</span>`, false)}
+      ${settingRow("首次引导", "扩展内可重新查看历史记录和备份介绍；桌面版无引导弹窗", `<button type="button" class="btn soft" id="set-guide">查看说明</button>`, false)}
+      ${settingRow("本地存储保护", "扩展检查 IndexedDB 持久化；桌面版直接读取你打开的备份文件", `<button type="button" class="btn soft" id="set-storage">刷新概览</button>`, false)}
+      ${settingRow("恢复出厂设置", "清除桌面端本地偏好（列数/每页/开关等），不会删除备份文件", `<button type="button" class="btn danger" id="set-reset">恢复默认</button>`, false)}
     </section>
+
     <section class="settings-col">
-      <h2 class="settings-col-title">同步与界面偏好</h2>
-      ${settingRow("历史自动同步间隔", "单位：分钟（扩展功能）", `<div class="stepper"><button type="button" disabled>-</button><input value="30" disabled /><button type="button" disabled>+</button></div>`)}
-      ${settingRow("同步删除本地记录", "在 B 站删除后同步到本地", `<label class="switch"><input type="checkbox" checked disabled><span></span></label>`)}
-      ${settingRow("同步删除 B 站记录", "在本地删除后尝试同步到 B 站", `<label class="switch"><input type="checkbox" checked disabled><span></span></label>`)}
-      ${settingRow("网格列数", "历史卡片列数", `<select id="set-cols"><option value="auto">自动</option><option value="3">3 列</option><option value="4">4 列</option><option value="5">5 列</option></select>`, false)}
-      ${settingRow("每页条数", "历史 / 收藏分页大小", `<select id="set-page-size"><option value="50">50</option><option value="100">100</option><option value="200">200</option></select>`, false)}
-      ${settingRow("隐藏菜单项", "扩展可隐藏侧栏入口；桌面版侧栏固定展示", `<span class="chip">不可用</span>`)}
+      <h2 class="settings-col-title">同步偏好（扩展能力，桌面仅保存选项）</h2>
+      ${settingRow("历史记录自动同步时间间隔", "单位：分钟。桌面版不会真正发起同步", `
+        <div class="stepper">
+          <button type="button" id="si-minus">-</button>
+          <input id="si-val" value="${syncInterval}" />
+          <button type="button" id="si-plus">+</button>
+        </div>`, false)}
+      ${settingRow("同步删除：插件 → B站", "在本地删除后尝试同步到 B 站（扩展功能）", `
+        <label class="switch"><input type="checkbox" id="sd-to-bili" ${isSyncDelete ? "checked" : ""}><span></span></label>`, false)}
+      ${settingRow("同步删除：B站 → 插件", "在 B 站删除后同步到本地（扩展功能）", `
+        <label class="switch"><input type="checkbox" id="sd-from-bili" ${isSyncDeleteFromBilibili ? "checked" : ""}><span></span></label>`, false)}
+    </section>
+
+    <section class="settings-col">
+      <h2 class="settings-col-title">历史记录加载方式</h2>
+      ${settingRow("数据加载方式", "控制历史记录页分页或滚动加载（桌面当前使用分页）", `
+        <div class="radio-row">
+          <label><input type="radio" name="loadMode" value="pagination" ${loadMode === "pagination" ? "checked" : ""}> 分页加载</label>
+          <label><input type="radio" name="loadMode" value="scroll" ${loadMode === "scroll" ? "checked" : ""}> 下拉加载</label>
+        </div>`, false)}
+      ${settingRow("网格列数", "历史卡片列数，立即生效", `
+        <select id="set-cols">
+          <option value="auto">自动</option>
+          <option value="3">3 列</option>
+          <option value="4">4 列</option>
+          <option value="5">5 列</option>
+        </select>`, false)}
+      ${settingRow("每页条数", "历史 / 收藏分页大小，立即生效", `
+        <select id="set-page-size">
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+        </select>`, false)}
+    </section>
+
+    <section class="settings-col">
+      <h2 class="settings-col-title">界面管理</h2>
+      ${settingRow("日期选择方式", "历史筛选日期控件：区间或单日（桌面筛选条为区间）", `
+        <div class="radio-row">
+          <label><input type="radio" name="dateMode" value="range" ${dateMode === "range" ? "checked" : ""}> 日期区间</label>
+          <label><input type="radio" name="dateMode" value="single" ${dateMode === "single" ? "checked" : ""}> 单日</label>
+        </div>`, false)}
+      ${settingRow("侧边栏菜单管理", "勾选后在侧栏隐藏对应入口（仅保存偏好）", `
+        <div class="menu-hide-list" id="menu-hide">
+          ${menuOptions.map(([id, label]) =>
+            `<label class="check-line"><input type="checkbox" data-hide="${id}" ${hiddenMenus.has(id) ? "checked" : ""}> ${label}</label>`
+          ).join("")}
+        </div>`, false)}
     </section>
   </div>`;
+
     const setCols = document.getElementById("set-cols");
     const setPs = document.getElementById("set-page-size");
     if (setCols) setCols.value = cols;
     if (setPs) setPs.value = String(PAGE_SIZE);
+
     document.getElementById("set-open")?.addEventListener("click", () => void openBackup());
+    document.getElementById("set-storage")?.addEventListener("click", () => R.settings());
+    document.getElementById("set-guide")?.addEventListener("click", () => {
+      contentEl.insertAdjacentHTML(
+        "afterbegin",
+        `<div class="note-banner" id="guide-note">桌面只读版：用右上角「打开备份」加载扩展导出的 JSON；历史 / 收藏 / 合集 / 音乐可浏览；点击卡片用系统浏览器打开 B 站。</div>`,
+      );
+    });
+    document.getElementById("set-reset")?.addEventListener("click", () => {
+      if (!confirm("确定清除桌面端本地偏好并恢复默认？")) return;
+      localStorage.removeItem(PREF_KEY);
+      g().cols = "4";
+      g().PAGE_SIZE = 100;
+      if (colsEl) colsEl.value = "4";
+      R.settings();
+    });
+
+    const siVal = document.getElementById("si-val");
+    const applyInterval = (n) => {
+      n = Math.max(1, Math.min(1440, Number(n) || 30));
+      if (siVal) siVal.value = String(n);
+      savePrefs({ syncInterval: n });
+    };
+    document.getElementById("si-minus")?.addEventListener("click", () => applyInterval(Number(siVal?.value) - 5));
+    document.getElementById("si-plus")?.addEventListener("click", () => applyInterval(Number(siVal?.value) + 5));
+    siVal?.addEventListener("change", () => applyInterval(siVal.value));
+
+    document.getElementById("sd-to-bili")?.addEventListener("change", (e) => {
+      savePrefs({ isSyncDelete: e.target.checked });
+    });
+    document.getElementById("sd-from-bili")?.addEventListener("change", (e) => {
+      savePrefs({ isSyncDeleteFromBilibili: e.target.checked });
+    });
+
+    contentEl.querySelectorAll('input[name="loadMode"]').forEach((el) => {
+      el.addEventListener("change", () => savePrefs({ historyLoadMode: el.value }));
+    });
+    contentEl.querySelectorAll('input[name="dateMode"]').forEach((el) => {
+      el.addEventListener("change", () => savePrefs({ dateSelectionMode: el.value }));
+    });
+
     setCols?.addEventListener("change", () => {
       g().cols = setCols.value;
       if (colsEl) colsEl.value = setCols.value;
+      savePrefs({ cols: setCols.value });
+      render();
     });
     setPs?.addEventListener("change", () => {
       g().PAGE_SIZE = Number(setPs.value) || 100;
+      savePrefs({ pageSize: g().PAGE_SIZE });
+      render();
+    });
+
+    document.getElementById("menu-hide")?.addEventListener("change", () => {
+      const list = [...contentEl.querySelectorAll("#menu-hide [data-hide]:checked")].map((x) => x.getAttribute("data-hide"));
+      savePrefs({ hiddenMenus: list });
     });
   };
 
