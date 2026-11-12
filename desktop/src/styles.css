@@ -245,7 +245,7 @@ select {
   border-radius: 0.5rem; padding: 0.45rem 0.75rem; font-size: 0.8rem; cursor: pointer; color: var(--ink-soft);
 }
 .about {
-  max-width: 40rem; border: 1 solid var(--line); border-radius: 1rem;
+  max-width: 40rem; border: 1px solid var(--line); border-radius: 1rem;
   background: var(--paper); padding: 1.25rem 1.5rem;
 }
 .about h2 { margin: 0 0 0.5rem; font-size: 1rem; }
