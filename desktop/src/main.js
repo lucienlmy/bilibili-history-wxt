@@ -42,12 +42,19 @@ const MENUS = [
     { id: "favorites", title: "收藏夹", icon: "star" },
     { id: "collections", title: "合集", icon: "library" },
     { id: "ai", title: "AI探索", icon: "sparkles" },
-    { id: "music", title: "我喜欢的音乐", icon: "music" },
+    { id: "music-group", title: "听歌", icon: "music", children: [
+      { id: "music-search", title: "搜索" },
+      { id: "music", title: "我喜欢的音乐" },
+    ]},
   ]},
   { group: "同步与备份", items: [
     { id: "cloud", title: "云同步", icon: "cloud" },
     { id: "video-backup", title: "视频备份", icon: "upload" },
-    { id: "backup-json", title: "JSON 文件", icon: "harddrive" },
+    { id: "backup-group", title: "数据备份", icon: "harddrive", children: [
+      { id: "backup-local", title: "本地目录" },
+      { id: "backup-webdav", title: "WebDAV" },
+      { id: "backup-json", title: "JSON 文件" },
+    ]},
   ]},
   { group: "更多", items: [
     { id: "about", title: "关于", icon: "info" },
@@ -56,6 +63,8 @@ const MENUS = [
     { id: "settings", title: "设置", icon: "settings" },
   ]},
 ];
+
+const openGroups = new Set(["music-group", "backup-group"]);
 
 const PAGE_META = {
   history: ["历史记录", "搜索、筛选并浏览本地备份中的观看记录"],
@@ -70,6 +79,9 @@ const PAGE_META = {
   feedback: ["反馈", "桌面只读版无反馈入口"],
   reward: ["赞赏", "桌面只读版占位页"],
   settings: ["设置", "部分视图设置可在历史页使用"],
+  "music-search": ["搜索音乐", "桌面只读版不提供在线搜索"],
+  "backup-local": ["本地目录", "桌面只读版请直接打开备份 JSON"],
+  "backup-webdav": ["WebDAV", "桌面只读版不支持 WebDAV"],
 };
 
 const ICONS = {
@@ -88,12 +100,29 @@ const ICONS = {
 };
 
 function buildNav() {
+  const childActiveParent = (it) =>
+    (it.children || []).some((c) => c.id === page);
+
   navEl.innerHTML = MENUS.map((g) => {
-    const items = g.items.map((it) =>
-      `<button type="button" class="nav-item${it.id === page ? " active" : ""}" data-page="${it.id}" title="${it.title}">
+    const items = g.items.map((it) => {
+      if (it.children && it.children.length) {
+        const open = openGroups.has(it.id) || childActiveParent(it);
+        if (childActiveParent(it)) openGroups.add(it.id);
+        const kids = it.children.map((c) =>
+          `<button type="button" class="nav-sub${c.id === page ? " active" : ""}" data-page="${c.id}">${c.title}</button>`
+        ).join("");
+        return `<div class="nav-expand${open ? " open" : ""}" data-group="${it.id}">
+          <button type="button" class="nav-item nav-parent${childActiveParent(it) ? " active" : ""}" data-toggle="${it.id}" title="${it.title}">
+            ${ICONS[it.icon] || ""}<span>${it.title}</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="nav-children">${kids}</div>
+        </div>`;
+      }
+      return `<button type="button" class="nav-item${it.id === page ? " active" : ""}" data-page="${it.id}" title="${it.title}">
         ${ICONS[it.icon] || ""}<span>${it.title}</span>
-      </button>`
-    ).join("");
+      </button>`;
+    }).join("");
     return `<div class="group"><p class="group-label">${g.group}</p>${items}</div>`;
   }).join("");
 }
@@ -595,6 +624,14 @@ async function openBackup() {
 function resetAndRender() { currentPage = 1; render(); }
 
 navEl.addEventListener("click", (e) => {
+  const toggle = e.target.closest("[data-toggle]");
+  if (toggle) {
+    const id = toggle.getAttribute("data-toggle");
+    if (openGroups.has(id)) openGroups.delete(id);
+    else openGroups.add(id);
+    buildNav();
+    return;
+  }
   const btn = e.target.closest("[data-page]");
   if (!btn) return;
   page = btn.getAttribute("data-page");
@@ -639,6 +676,11 @@ document.getElementById("btn-toggle-filters").addEventListener("click", () => {
   document.getElementById("btn-toggle-filters").setAttribute("aria-expanded", String(filtersOpen));
 });
 document.getElementById("brand-home").addEventListener("click", () => {
+  if (collapsed) {
+    collapsed = false;
+    sidebar.classList.remove("collapsed");
+    return;
+  }
   page = "history"; activeFolderId = null; activeCollectionId = null; currentPage = 1; render();
 });
 document.getElementById("btn-collapse").addEventListener("click", () => {
