@@ -9,8 +9,8 @@
   --brand: #fb7299;
   --brand-strong: #e85a84;
   --brand-soft: #fff0f4;
-  --night: #0f1115;
-  --night-card: #171a21;
+  --night: #0e0f10;
+  --night-card: #17191a;
   --night-line: #2a2f3a;
   --night-text: #e8eaed;
   --night-muted: #9aa3b2;
@@ -33,7 +33,9 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   color: var(--ink);
   background: var(--wash);
+  -webkit-font-smoothing: antialiased;
 }
+html.dark body { background: #0e0f10; }
 .layout { display: flex; min-height: 100%; }
 .sidebar {
   position: fixed; left: 0; top: 0; z-index: 40;
@@ -176,6 +178,17 @@ body {
   outline: none; border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
 }
+.segment {
+  display: inline-flex; border: 1px solid var(--line); border-radius: 0.5rem; overflow: hidden;
+  background: var(--paper);
+}
+.segment button {
+  border: 0; background: transparent; height: 2.5rem; padding: 0 0.85rem;
+  font-size: 0.8rem; color: var(--ink-muted); cursor: pointer;
+}
+.segment button.active {
+  background: var(--brand-soft); color: var(--brand-strong); font-weight: 600;
+}
 .content {
   max-width: 1600px; margin: 0 auto; padding: 1.25rem 1.5rem 1rem;
 }
@@ -198,6 +211,7 @@ body {
 .history-card {
   overflow: hidden; border-radius: 0.75rem; border: 1px solid var(--line);
   background: var(--paper); transition: border-color .2s, transform .2s;
+  content-visibility: auto; contain-intrinsic-size: auto 320px;
 }
 .history-card:hover {
   transform: translateY(-2px);
@@ -267,6 +281,28 @@ body {
 .folder:hover { border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); }
 .folder h3 { margin: 0 0 0.35rem; font-size: 0.9rem; }
 .folder p { margin: 0; font-size: 0.75rem; color: var(--ink-muted); }
+.music-list { display: flex; flex-direction: column; gap: 0.85rem; max-width: 72rem; margin: 0 auto; }
+.music-row {
+  display: flex; gap: 1rem; align-items: center;
+  background: var(--paper); border: 1px solid transparent; border-radius: 0.65rem;
+  padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  transition: background .2s, box-shadow .2s;
+}
+html.dark .music-row { border-color: var(--line); }
+.music-row:hover { background: var(--wash); box-shadow: 0 6px 16px rgba(0,0,0,.06); }
+.music-cover {
+  width: 8rem; height: 5rem; border-radius: 0.5rem; object-fit: cover; flex-shrink: 0; background: var(--wash);
+}
+.music-body { flex: 1; min-width: 0; }
+.music-title {
+  margin: 0 0 0.35rem; font-size: 1rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.music-title a { color: inherit; text-decoration: none; }
+.music-title a:hover { color: var(--brand-strong); }
+.music-sub { font-size: 0.8rem; color: var(--ink-muted); display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; }
+.music-sub a { color: inherit; text-decoration: none; }
+.music-sub a:hover { color: var(--brand-strong); }
 .pagination {
   max-width: 1600px; margin: 0 auto; padding: 0.5rem 1.5rem 1.5rem;
   display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: center;
