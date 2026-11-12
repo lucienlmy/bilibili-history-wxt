@@ -248,9 +248,15 @@ function historyCard(item) {
       ${progressLabel ? `<span class="badge bottom-left">${escapeHtml(progressLabel)}</span>` : ""}
       ${tag !== "视频" ? `<span class="badge bottom-right">${escapeHtml(tag)}</span>` : ""}
       ${item.progress === -1 ? `<span class="badge top-left">已看完</span>` : ""}
+      ${item.is_fav ? `<span class="badge" style="right:0.5rem;top:0.5rem">已收藏</span>` : ""}
     </a>
     <div class="card-body">
-      <h3 class="card-title"><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" title="${escapeAttr(item.title || "")}">${escapeHtml(item.title || "未命名内容")}</a></h3>
+      <div class="card-title-row">
+        <h3 class="card-title"><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" title="${escapeAttr(item.title || "")}">${escapeHtml(item.title || "未命名内容")}</a></h3>
+        <span class="card-action" title="桌面只读，不可删除" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        </span>
+      </div>
       <div class="card-meta">
         <a href="https://space.bilibili.com/${Number(item.author_mid) || 0}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.author_name || "未知 UP 主")}</a>
         <time>${fmtTime(item.view_at)}</time>
@@ -286,15 +292,38 @@ function renderPagination(total) {
   }
   paginationEl.hidden = false;
   const pages = [];
-  const start = Math.max(1, currentPage - 2);
-  const end = Math.min(totalPages, currentPage + 2);
-  pages.push(`<button type="button" data-pg="${currentPage - 1}" ${currentPage <= 1 ? "disabled" : ""}>上一页</button>`);
-  for (let i = start; i <= end; i++) {
-    pages.push(`<button type="button" data-pg="${i}" class="${i === currentPage ? "active" : ""}">${i}</button>`);
+  pages.push(`<button type="button" data-pg="${currentPage - 1}" ${currentPage <= 1 ? "disabled" : ""}>‹ 上一页</button>`);
+  const nums = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) nums.push(i);
+  } else {
+    nums.push(1);
+    let start = Math.max(2, currentPage - 1);
+    let end = Math.min(totalPages - 1, currentPage + 1);
+    if (currentPage < 4) end = 4;
+    if (currentPage > totalPages - 3) start = totalPages - 3;
+    if (start > 2) nums.push("…");
+    for (let i = start; i <= end; i++) nums.push(i);
+    if (end < totalPages - 1) nums.push("…");
+    nums.push(totalPages);
   }
-  pages.push(`<span class="pg-info">${currentPage} / ${totalPages}</span>`);
-  pages.push(`<button type="button" data-pg="${currentPage + 1}" ${currentPage >= totalPages ? "disabled" : ""}>下一页</button>`);
+  for (const n of nums) {
+    if (n === "…") pages.push(`<span class="pg-info">…</span>`);
+    else pages.push(`<button type="button" data-pg="${n}" class="${n === currentPage ? "active" : ""}">${n}</button>`);
+  }
+  pages.push(`<button type="button" data-pg="${currentPage + 1}" ${currentPage >= totalPages ? "disabled" : ""}>下一页 ›</button>`);
+  pages.push(`<span class="pg-info">共 ${totalPages} 页 / ${total} 个</span>`);
+  pages.push(`<span class="pg-jump">跳至 <input id="pg-jump-input" type="number" min="1" max="${totalPages}" /> 页</span>`);
   paginationEl.innerHTML = pages.join("");
+  const jump = document.getElementById("pg-jump-input");
+  if (jump) {
+    const go = () => {
+      const n = Number(jump.value);
+      if (n >= 1 && n <= totalPages) { currentPage = n; render(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    };
+    jump.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+    jump.addEventListener("change", go);
+  }
 }
 
 function getFilteredHistory() {
@@ -475,7 +504,7 @@ function renderAbout() {
   paginationEl.hidden = true;
   contentEl.innerHTML = `<div class="about">
     <h2>桌面只读查看器</h2>
-    <p>界面按扩展主布局对齐：侧边栏分组、历史卡片网格、收藏夹左右分栏、音乐横排列表、观看进度条。数据<strong>仅来自</strong>扩展导出的备份 JSON。</p>
+    <p>界面按扩展主布局对齐。数据<strong>仅来自</strong>扩展导出的备份 JSON。</p>
     <ul>
       <li>兼容 formatVersion: 2 完整备份包</li>
       <li>兼容旧版顶层 HistoryItem[]</li>
@@ -576,7 +605,7 @@ paginationEl.addEventListener("click", (e) => {
   render();
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
-document.getElementById("btn-open").addEventListener("click", () => void openBackup());
+document.getElementById("btn-open")?.addEventListener("click", () => void openBackup());
 document.getElementById("btn-open-2").addEventListener("click", () => void openBackup());
 document.getElementById("btn-refresh").addEventListener("click", () => render());
 document.getElementById("btn-toggle-filters").addEventListener("click", () => {
@@ -603,7 +632,7 @@ dateStartEl.addEventListener("change", () => { dateStart = dateStartEl.value; re
 dateEndEl.addEventListener("change", () => { dateEnd = dateEndEl.value; resetAndRender(); });
 
 window.addEventListener("scroll", () => {
-  scrollTopBtn.hidden = window.scrollY < 400;
+  scrollTopBtn.hidden = window.scrollY < 300;
 });
 scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 
