@@ -370,163 +370,155 @@ function getFilteredHistory() {
 
 function renderHistory() {
   const items = getFilteredHistory();
-  const totalAll = pack?.history?.length || 0;
-  const unit = displayMode === "visit" ? "次观看" : "个内容";
-  const totalBase = displayMode === "visit" && (pack?.historyEvents || []).length ? pack.historyEvents.length : totalAll;
-  pageCount.textContent = totalBase + " " + unit + " · 筛选 " + items.length;
-  if (!items.length) {
-    contentEl.innerHTML = `<div class="empty">${search || typeFilter !== "all" || dateStart || dateEnd ? "没有找到匹配的历史记录" : "备份中没有历史记录"}</div>`;
-    paginationEl.hidden = true;
-    return;
-  }
-  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  if (currentPage > totalPages) currentPage = totalPages;
-  const start = (currentPage - 1) * PAGE_SIZE;
-  contentEl.innerHTML = `<div class="${gridClass()}">${items.slice(start, start + PAGE_SIZE).map(historyCard).join("")}</div>`;
-  renderPagination(items.length);
-}
-
-function renderFavorites() {
-  const folders = (pack?.favFolders || []).slice().sort((a, b) => (a.index || 0) - (b.index || 0));
-  const resources = pack?.favResources || [];
-  if (!folders.length) {
-    pageCount.textContent = "0 个收藏夹";
-    contentEl.innerHTML = `<div class="empty">备份中没有收藏夹数据</div>`;
-    paginationEl.hidden = true;
-    return;
-  }
-  if (activeFolderId == null || !folders.some((f) => Number(f.id) === Number(activeFolderId))) activeFolderId = folders[0].id;
-  const folder = folders.find((f) => Number(f.id) === Number(activeFolderId));
-  const q = search.trim().toLowerCase();
-  let items = resources.filter((r) => Number(r.folder_id) === Number(activeFolderId));
-  items = items.filter((x) => matchText(x, q));
-  items = sortItems(items, "fav_time");
-  pageCount.textContent = folders.length + " 个收藏夹 · " + (folder?.title || "") + " " + items.length + " 项";
-  const folderList = folders.map((f) =>
-    `<div class="fav-folder-item${Number(f.id) === Number(activeFolderId) ? " active" : ""}" data-folder="${f.id}">
-      <button type="button" class="fav-folder-main" data-folder="${f.id}">
-        <h3>${escapeHtml(f.title || "未命名收藏夹")}</h3>
-        <p>${Number(f.media_count || 0)} 个内容</p>
-      </button>
-      <button type="button" class="fav-folder-more" disabled title="桌面只读">⋯</button>
-    </div>`
-  ).join("");
+  pageCount.textContent = items.length + " 个内容";
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   if (currentPage > totalPages) currentPage = totalPages;
   const start = (currentPage - 1) * PAGE_SIZE;
   const shown = items.slice(start, start + PAGE_SIZE);
+  if (!shown.length) {
+    contentEl.innerHTML = `<div class="empty"><p>没有匹配的历史记录</p>${hasActiveFilters() ? `<p><button type="button" class="empty-cta" id="empty-clear">清除筛选</button></p>` : ""}</div>`;
+    document.getElementById("empty-clear")?.addEventListener("click", clearFilters);
+    paginationEl.hidden = true;
+    return;
+  }
+  contentEl.innerHTML = `<div class="${gridClass()}">${shown.map(historyCard).join("")}</div>`;
+  renderPagination(items.length);
+}
+
+function getFilteredFavResources() {
+  const q = search.trim().toLowerCase();
+  let items = (pack?.favResources || []).slice();
+  if (activeFolderId != null) items = items.filter((x) => String(x.media_id || x.folder_id || "") === String(activeFolderId));
+  items = items.filter((x) => matchText(x, q) && inDateRange(x.fav_time || x.added_at || x.pubdate));
+  return sortItems(items, "fav_time");
+}
+
+function renderFavorites() {
+  const folders = pack?.favFolders || [];
+  if (!folders.length && !(pack?.favResources || []).length) {
+    pageCount.textContent = "0 个内容";
+    contentEl.innerHTML = `<div class="empty"><p>备份中没有收藏夹数据</p></div>`;
+    paginationEl.hidden = true;
+    return;
+  }
+  if (activeFolderId == null && folders[0]) activeFolderId = folders[0].id ?? folders[0].media_id ?? folders[0].fid;
+  const items = getFilteredFavResources();
+  pageCount.textContent = items.length + " 个内容";
+  const folderHtml = folders.map((f) => {
+    const id = f.id ?? f.media_id ?? f.fid;
+    const active = String(id) === String(activeFolderId);
+    const count = (pack.favResources || []).filter((x) => String(x.media_id || x.folder_id || "") === String(id)).length;
+    return `<div class="fav-folder-item${active ? " active" : ""}">
+      <button type="button" class="fav-folder-main" data-folder="${escapeAttr(String(id))}">
+        <h3>${escapeHtml(f.title || f.name || "未命名收藏夹")}</h3>
+        <p>${count} 个内容</p>
+      </button>
+      <button type="button" class="fav-folder-more" title="只读" disabled>···</button>
+    </div>`;
+  }).join("");
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const shown = items.slice(start, start + PAGE_SIZE);
+  const grid = shown.length
+    ? `<div class="${gridClass()}">${shown.map(resourceCard).join("")}</div>`
+    : `<div class="empty"><p>此收藏夹暂无内容</p></div>`;
   contentEl.innerHTML = `<div class="fav-layout">
     <aside class="fav-folders">
-      <div class="fav-folders-head">
-        <span class="fav-head-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h6l2 2h10v10H3z"/></svg>
-          收藏夹
-        </span>
-        <button type="button" class="fav-sync-all" disabled title="桌面只读，不可同步">同步所有</button>
-      </div>
-      ${folderList}
+      <div class="fav-folders-head"><span class="fav-head-title">收藏夹</span><button type="button" class="fav-sync-all" disabled>同步全部</button></div>
+      ${folderHtml || `<div class="empty" style="margin:1rem"><p>无收藏夹</p></div>`}
     </aside>
-    <div class="fav-main">
-      <div class="${gridClass()}">${shown.map(resourceCard).join("") || ""}</div>
-      ${!items.length ? `<div class="empty">该收藏夹没有资源</div>` : ""}
-    </div>
+    <div class="fav-main">${grid}</div>
   </div>`;
-  contentEl.querySelectorAll(".fav-folder-main[data-folder]").forEach((el) => {
-    el.addEventListener("click", () => {
-      activeFolderId = Number(el.getAttribute("data-folder"));
-      currentPage = 1;
-      render();
-    });
+  contentEl.querySelectorAll("[data-folder]").forEach((btn) => {
+    btn.addEventListener("click", () => { activeFolderId = btn.getAttribute("data-folder"); currentPage = 1; render(); });
   });
   renderPagination(items.length);
 }
 
-function musicRow(item) {
-  const bvid = item.bvid || "";
-  const url = bvid ? "https://www.bilibili.com/video/" + bvid : "#";
-  const mid = item.mid || 0;
-  return `<div class="music-row">
-    <img class="music-cover" src="${escapeAttr(item.pic || "")}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.opacity='.2'" />
-    <div class="music-body">
-      <h3 class="music-title"><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || "未命名")}</a></h3>
-      <div class="music-sub">
-        <a href="https://space.bilibili.com/${mid}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.author || "-")}</a>
-        <span>收藏于 ${fmtTime(item.added_at)}</span>
-        <span>${escapeHtml(bvid)}</span>
-      </div>
-    </div>
-  </div>`;
-}
-
 function renderMusic() {
   const q = search.trim().toLowerCase();
-  let items = pack?.likedMusic || [];
+  let items = (pack?.likedMusic || []).slice();
   items = items.filter((x) => matchText(x, q));
-  items = sortItems(items, "added_at");
-  pageCount.textContent = (pack?.likedMusic?.length || 0) + " 首 · 筛选 " + items.length;
+  items = sortItems(items, "fav_time");
+  pageCount.textContent = items.length + " 首";
   if (!items.length) {
-    contentEl.innerHTML = `<div class="empty">备份中没有喜欢的音乐</div>`;
+    contentEl.innerHTML = `<div class="empty"><p>备份中没有喜欢的音乐</p></div>`;
     paginationEl.hidden = true;
     return;
   }
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
   const start = (currentPage - 1) * PAGE_SIZE;
   const shown = items.slice(start, start + PAGE_SIZE);
+  const rows = shown.map((item) => {
+    const bvid = item.bvid || item.bv_id || "";
+    const url = bvid ? "https://www.bilibili.com/video/" + bvid : (item.link || "#");
+    return `<article class="music-row">
+      <img class="music-cover" src="${escapeAttr(coverSrc(item.cover))}" alt="" loading="lazy" referrerpolicy="no-referrer"
+        onerror="this.style.opacity='.2'" />
+      <div class="music-body">
+        <h3 class="music-title"><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || "未命名")}</a></h3>
+        <div class="music-sub">
+          <span>${escapeHtml(item.upper?.name || item.author || "-")}</span>
+          <time>${fmtTime(item.fav_time || item.pubdate)}</time>
+        </div>
+      </div>
+    </article>`;
+  }).join("");
   contentEl.innerHTML = `<div class="music-page">
     <div class="music-player-bar">
       <div class="music-player-left">
         <h2>我喜欢的音乐</h2>
-        <span class="count">(${items.length} 首)</span>
-        <div class="music-controls">
-          <button type="button" class="icon-btn" disabled title="上一首">⏮</button>
-          <button type="button" class="music-play" disabled title="播放">▶</button>
-          <button type="button" class="icon-btn" disabled title="下一首">⏭</button>
-          <button type="button" class="icon-btn" disabled title="播放模式">🔁</button>
-        </div>
+        <div class="music-controls"><button type="button" class="music-play" disabled title="桌面只读">▶</button></div>
       </div>
-      <p class="music-player-hint">桌面只读版不提供播放，仅展示备份列表</p>
+      <p class="music-player-hint">桌面只读版不播放音频，点击标题可在浏览器打开</p>
     </div>
-    <div class="music-list">${shown.map(musicRow).join("")}</div>
+    <div class="music-list">${rows}</div>
   </div>`;
   renderPagination(items.length);
 }
 
 function renderCollections() {
-  const colsList = (pack?.subscribedCollections || []).slice();
+  const colsList = pack?.subscribedCollections || [];
   const resources = pack?.subscribedCollectionResources || [];
-  if (!colsList.length) {
-    pageCount.textContent = "0 个合集";
-    paginationEl.hidden = true;
-    contentEl.innerHTML = `<div class="empty">备份中没有订阅合集</div>`;
-    return;
-  }
   if (activeCollectionId != null) {
-    const col = colsList.find((c) => Number(c.id) === Number(activeCollectionId));
+    const col = colsList.find((c) => String(c.id || c.season_id) === String(activeCollectionId));
+    let items = resources.filter((x) => String(x.season_id || x.collection_id || "") === String(activeCollectionId));
     const q = search.trim().toLowerCase();
-    let items = resources.filter((r) => Number(r.collection_id ?? r.season_id ?? r.sid) === Number(activeCollectionId));
-    if (!items.length && resources.length && colsList.length === 1) items = resources.slice();
     items = items.filter((x) => matchText(x, q));
-    items = sortItems(items, "fav_time");
-    pageCount.textContent = (col?.title || "合集") + " · " + items.length + " 项";
+    items = sortItems(items, "pubdate");
+    pageCount.textContent = items.length + " 个内容";
+    const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
     const start = (currentPage - 1) * PAGE_SIZE;
     const shown = items.slice(start, start + PAGE_SIZE);
-    contentEl.innerHTML = `<button type="button" class="collection-back" id="back-collections">← 返回合集列表</button>
-      <div class="${gridClass()}">${shown.map(resourceCard).join("") || ""}</div>
-      ${!items.length ? `<div class="empty">该合集没有资源数据</div>` : ""}`;
-    document.getElementById("back-collections")?.addEventListener("click", () => { activeCollectionId = null; currentPage = 1; render(); });
+    contentEl.innerHTML = `
+      <button type="button" class="collection-back" id="col-back">← 返回合集列表</button>
+      <h2 style="margin:0 0 1rem;font-size:1.1rem">${escapeHtml(col?.title || col?.name || "合集")}</h2>
+      ${shown.length ? `<div class="${gridClass()}">${shown.map(resourceCard).join("")}</div>` : `<div class="empty"><p>此合集暂无内容</p></div>`}`;
+    document.getElementById("col-back")?.addEventListener("click", () => { activeCollectionId = null; currentPage = 1; render(); });
     renderPagination(items.length);
     return;
   }
   pageCount.textContent = colsList.length + " 个合集";
-  paginationEl.hidden = true;
-  contentEl.innerHTML = `<div class="folder-grid">${colsList.map((c) =>
-    `<button type="button" class="folder" data-collection="${c.id}">
-      <h3>${escapeHtml(c.title || "未命名合集")}</h3>
-      <p>${Number(c.media_count || 0)} 个内容 · ${escapeHtml(c.upper?.name || c.author || "")}</p>
-    </button>`
-  ).join("")}</div>`;
-  contentEl.querySelectorAll("[data-collection]").forEach((el) => {
-    el.addEventListener("click", () => { activeCollectionId = el.getAttribute("data-collection"); currentPage = 1; render(); });
+  if (!colsList.length) {
+    contentEl.innerHTML = `<div class="empty"><p>备份中没有合集数据</p></div>`;
+    paginationEl.hidden = true;
+    return;
+  }
+  contentEl.innerHTML = `<div class="folder-grid">${colsList.map((c) => {
+    const id = c.id ?? c.season_id;
+    const count = resources.filter((x) => String(x.season_id || x.collection_id || "") === String(id)).length;
+    return `<button type="button" class="folder" data-col="${escapeAttr(String(id))}">
+      <h3>${escapeHtml(c.title || c.name || "未命名合集")}</h3>
+      <p>${count} 个内容</p>
+    </button>`;
+  }).join("")}</div>`;
+  contentEl.querySelectorAll("[data-col]").forEach((btn) => {
+    btn.addEventListener("click", () => { activeCollectionId = btn.getAttribute("data-col"); currentPage = 1; render(); });
   });
+  paginationEl.hidden = true;
 }
 
 function renderPlaceholder() {
@@ -543,17 +535,30 @@ function renderPlaceholder() {
 function renderAbout() {
   pageCount.textContent = "";
   paginationEl.hidden = true;
-  contentEl.innerHTML = `<div class="about">
-    <h2>桌面只读查看器</h2>
-    <p>界面按扩展主布局对齐。数据<strong>仅来自</strong>扩展导出的备份 JSON。</p>
-    <ul>
-      <li>兼容 formatVersion: 2 完整备份包</li>
-      <li>兼容旧版顶层 HistoryItem[]</li>
-      <li>不登录 B 站、不同步、不写回</li>
-    </ul>
-    <p>当前文件：${escapeHtml(sourceName || "未加载")}</p>
-    <p>导出时间：${escapeHtml(pack?.exportedAt || "-")}</p>
+  const hist = pack?.history?.length || 0;
+  const visits = pack?.historyEvents?.length || 0;
+  const favs = pack?.favFolders?.length || 0;
+  const music = pack?.likedMusic?.length || 0;
+  contentEl.innerHTML = `
+  <div class="panel-stack">
+    <div class="panel-card">
+      <div class="panel-head"><h3>关于 · 无限历史记录（桌面）</h3><span class="chip ok">只读</span></div>
+      <p class="panel-desc">界面按浏览器扩展主布局对齐。数据<strong>仅来自</strong>扩展导出的备份 JSON，不登录、不同步、不写回。</p>
+      <ul class="bullet-list">
+        <li>兼容 formatVersion: 2 完整备份包</li>
+        <li>兼容旧版顶层 HistoryItem[]</li>
+        <li>点击视频 / UP 主链接用系统浏览器打开</li>
+      </ul>
+      <div class="kv"><span>当前文件</span><span>${escapeHtml(sourceName || "未加载")}</span></div>
+      <div class="kv"><span>导出时间</span><span>${escapeHtml(pack?.exportedAt || "—")}</span></div>
+      <div class="kv"><span>数据概览</span><span>历史 ${hist} · 观看 ${visits} · 收藏夹 ${favs} · 音乐 ${music}</span></div>
+      <div class="panel-actions">
+        <button type="button" class="btn primary" id="about-open">打开备份</button>
+        <a class="btn" href="https://github.com/lucienlmy/bilibili-history-wxt" target="_blank" rel="noopener">项目主页</a>
+      </div>
+    </div>
   </div>`;
+  document.getElementById("about-open")?.addEventListener("click", () => void openBackup());
 }
 
 function renderEmpty() {
@@ -567,18 +572,32 @@ function renderEmpty() {
   document.getElementById("empty-open")?.addEventListener("click", () => void openBackup());
 }
 
+const SECONDARY_PAGES = new Set([
+  "settings", "cloud", "video-backup", "ai", "feedback", "reward",
+  "backup-local", "backup-webdav", "backup-json", "music-search",
+]);
+
 function render() {
   const meta = PAGE_META[page] || PAGE_META.history;
   pageTitle.textContent = meta[0];
   pageDesc.textContent = meta[1];
   buildNav();
-  if (!pack) { renderEmpty(); updateClearBtn(); return; }
+  // 二级页面（设置/云同步等）无备份也可展示界面壳
+  if (!pack && !SECONDARY_PAGES.has(page) && page !== "about") {
+    renderEmpty();
+    updateClearBtn();
+    return;
+  }
   if (page === "history") renderHistory();
   else if (page === "favorites") renderFavorites();
   else if (page === "music") renderMusic();
   else if (page === "collections") renderCollections();
   else if (page === "about") renderAbout();
-  else renderPlaceholder();
+  else {
+    const R = globalThis.__BILI_PAGE_RENDERERS || {};
+    if (typeof R[page] === "function") R[page]();
+    else renderPlaceholder();
+  }
   updateClearBtn();
 }
 
@@ -591,8 +610,7 @@ async function openBackup() {
     contentEl.innerHTML = skeletonHtml();
     paginationEl.hidden = true;
     const path = typeof selected === "string" ? selected : selected.path || selected;
-    const text = await readTextFile(path);
-    pack = normalizeBackup(JSON.parse(text));
+    pack = normalizeBackup(JSON.parse(await readTextFile(path)));
     sourceName = String(path).split(/[/\\]/).pop() || String(path);
     activeFolderId = null; activeCollectionId = null; currentPage = 1;
     fileMeta.textContent = sourceName + "\n历史 " + pack.history.length + " · 收藏 " + pack.favFolders.length + " · 音乐 " + pack.likedMusic.length;
@@ -619,96 +637,98 @@ async function openBackup() {
   }
 }
 
-function resetAndRender() { currentPage = 1; render(); }
+function resetAndRender() {
+  currentPage = 1;
+  render();
+}
 
-navEl.addEventListener("click", (e) => {
+// events
+document.getElementById("btn-open-2")?.addEventListener("click", () => void openBackup());
+document.getElementById("btn-refresh")?.addEventListener("click", () => render());
+document.getElementById("btn-collapse")?.addEventListener("click", () => {
+  collapsed = !collapsed;
+  sidebar.classList.toggle("collapsed", collapsed);
+});
+document.getElementById("brand-home")?.addEventListener("click", () => {
+  if (collapsed) { collapsed = false; sidebar.classList.remove("collapsed"); return; }
+  page = "history"; currentPage = 1; render();
+});
+document.getElementById("btn-toggle-filters")?.addEventListener("click", () => {
+  filtersOpen = !filtersOpen;
+  filtersEl.classList.toggle("collapsed", !filtersOpen);
+});
+document.getElementById("btn-theme")?.addEventListener("click", () => {
+  document.documentElement.classList.toggle("dark");
+});
+document.getElementById("btn-clear-filters")?.addEventListener("click", clearFilters);
+
+searchEl?.addEventListener("input", () => { search = searchEl.value; resetAndRender(); });
+searchKindEl?.addEventListener("change", () => { searchKind = searchKindEl.value; resetAndRender(); });
+sortEl?.addEventListener("change", () => { sort = sortEl.value; resetAndRender(); });
+typeEl?.addEventListener("change", () => { typeFilter = typeEl.value; resetAndRender(); });
+colsEl?.addEventListener("change", () => { cols = colsEl.value; render(); });
+dateStartEl?.addEventListener("change", () => { dateStart = dateStartEl.value; resetAndRender(); });
+dateEndEl?.addEventListener("change", () => { dateEnd = dateEndEl.value; resetAndRender(); });
+
+document.getElementById("display-mode")?.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-mode]");
+  if (!btn) return;
+  displayMode = btn.getAttribute("data-mode") || "content";
+  document.querySelectorAll("#display-mode [data-mode]").forEach((b) => b.classList.toggle("active", b === btn));
+  resetAndRender();
+});
+
+navEl?.addEventListener("click", (e) => {
   const toggle = e.target.closest("[data-toggle]");
   if (toggle) {
     const id = toggle.getAttribute("data-toggle");
-    if (openGroups.has(id)) openGroups.delete(id);
-    else openGroups.add(id);
+    if (openGroups.has(id)) openGroups.delete(id); else openGroups.add(id);
     buildNav();
     return;
   }
   const btn = e.target.closest("[data-page]");
   if (!btn) return;
-  page = btn.getAttribute("data-page");
-  activeFolderId = null; activeCollectionId = null; currentPage = 1;
+  page = btn.getAttribute("data-page") || "history";
+  currentPage = 1;
+  activeCollectionId = null;
   render();
 });
-paginationEl.addEventListener("click", (e) => {
+
+paginationEl?.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-pg]");
   if (!btn || btn.disabled) return;
   const n = Number(btn.getAttribute("data-pg"));
-  if (!n || n < 1) return;
-  currentPage = n; render();
+  if (!Number.isFinite(n) || n < 1) return;
+  currentPage = n;
+  render();
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
-document.getElementById("btn-open")?.addEventListener("click", () => void openBackup());
-document.getElementById("btn-open-2").addEventListener("click", () => void openBackup());
-document.getElementById("btn-refresh").addEventListener("click", () => render());
+
 const vsModal = document.getElementById("view-settings-modal");
-const openVs = () => {
-  if (!vsModal) return;
+document.getElementById("btn-view-settings")?.addEventListener("click", () => {
   const vsCols = document.getElementById("vs-cols");
   const vsPs = document.getElementById("vs-page-size");
   if (vsCols) vsCols.value = cols;
   if (vsPs) vsPs.value = String(PAGE_SIZE);
-  vsModal.hidden = false;
-};
-const closeVs = () => { if (vsModal) vsModal.hidden = true; };
-document.getElementById("btn-view-settings")?.addEventListener("click", openVs);
-document.getElementById("vs-close")?.addEventListener("click", closeVs);
-document.getElementById("vs-cancel")?.addEventListener("click", closeVs);
+  if (vsModal) vsModal.hidden = false;
+});
+document.getElementById("vs-close")?.addEventListener("click", () => { if (vsModal) vsModal.hidden = true; });
+document.getElementById("vs-cancel")?.addEventListener("click", () => { if (vsModal) vsModal.hidden = true; });
 document.getElementById("vs-save")?.addEventListener("click", () => {
   const vsCols = document.getElementById("vs-cols");
   const vsPs = document.getElementById("vs-page-size");
   if (vsCols) { cols = vsCols.value; if (colsEl) colsEl.value = cols; }
   if (vsPs) PAGE_SIZE = Number(vsPs.value) || 100;
-  closeVs(); resetAndRender();
+  if (vsModal) vsModal.hidden = true;
+  resetAndRender();
 });
-vsModal?.addEventListener("click", (e) => { if (e.target === vsModal) closeVs(); });
-document.getElementById("btn-toggle-filters").addEventListener("click", () => {
-  filtersOpen = !filtersOpen;
-  filtersEl.classList.toggle("collapsed", !filtersOpen);
-  document.getElementById("btn-toggle-filters").setAttribute("aria-expanded", String(filtersOpen));
+vsModal?.addEventListener("click", (e) => { if (e.target === vsModal) vsModal.hidden = true; });
+
+window.addEventListener("scroll", () => {
+  if (scrollTopBtn) scrollTopBtn.hidden = window.scrollY < 400;
 });
-document.getElementById("brand-home").addEventListener("click", () => {
-  if (collapsed) {
-    collapsed = false;
-    sidebar.classList.remove("collapsed");
-    return;
-  }
-  page = "history"; activeFolderId = null; activeCollectionId = null; currentPage = 1; render();
-});
-document.getElementById("btn-collapse").addEventListener("click", () => {
-  collapsed = !collapsed; sidebar.classList.toggle("collapsed", collapsed);
-});
-document.getElementById("btn-theme").addEventListener("click", () => {
-  document.documentElement.classList.toggle("dark");
-});
-searchEl.addEventListener("input", () => { search = searchEl.value; resetAndRender(); });
-sortEl.addEventListener("change", () => { sort = sortEl.value; resetAndRender(); });
-typeEl.addEventListener("change", () => { typeFilter = typeEl.value; resetAndRender(); });
-colsEl.addEventListener("change", () => { cols = colsEl.value; render(); });
-searchKindEl.addEventListener("change", () => { searchKind = searchKindEl.value; resetAndRender(); });
-dateStartEl.addEventListener("change", () => { dateStart = dateStartEl.value; resetAndRender(); });
-dateEndEl.addEventListener("change", () => { dateEnd = dateEndEl.value; resetAndRender(); });
-window.addEventListener("scroll", () => { scrollTopBtn.hidden = window.scrollY < 300; });
-scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
-const displayModeEl = document.getElementById("display-mode");
-if (displayModeEl) {
-  displayModeEl.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-mode]");
-    if (!btn) return;
-    displayMode = btn.getAttribute("data-mode") || "content";
-    displayModeEl.querySelectorAll("button").forEach((b) => {
-      b.classList.toggle("active", b.getAttribute("data-mode") === displayMode);
-    });
-    resetAndRender();
-  });
-}
-document.getElementById("btn-clear-filters")?.addEventListener("click", clearFilters);
+scrollTopBtn?.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+
 window.addEventListener("keydown", (e) => {
   if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
     const t = e.target;
@@ -737,6 +757,24 @@ contentEl.addEventListener("click", (e) => {
     void openExternal(href);
   }
 });
+
+// 供 secondary.js 注册设置/云同步等二级页 UI
+globalThis.__bili = {
+  get contentEl() { return contentEl; },
+  get pageCount() { return pageCount; },
+  get paginationEl() { return paginationEl; },
+  get pack() { return pack; },
+  get sourceName() { return sourceName; },
+  get cols() { return cols; },
+  set cols(v) { cols = v; },
+  get PAGE_SIZE() { return PAGE_SIZE; },
+  set PAGE_SIZE(v) { PAGE_SIZE = v; },
+  get colsEl() { return colsEl; },
+  escapeHtml,
+  openBackup,
+  openExternal,
+  render,
+};
 
 buildNav();
 render();
