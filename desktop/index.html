@@ -179,6 +179,37 @@
         </div>
       </div>
     </div>
+    <div class="modal-mask" id="sync-modal" hidden>
+      <div class="modal sync-modal" role="dialog" aria-modal="true" aria-labelledby="sync-title">
+        <div class="modal-head">
+          <h2 id="sync-title">同步历史记录</h2>
+          <button type="button" class="icon-btn" id="sync-close" aria-label="关闭">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="hint">从 B 站拉取观看历史到本地列表。与扩展相同：支持增量与全量。</p>
+          <p class="hint" id="sync-last">尚未同步过</p>
+          <div class="sync-mode-row">
+            <label><input type="radio" name="sync-mode" value="incremental" checked /> 增量同步</label>
+            <label><input type="radio" name="sync-mode" value="full" /> 全量同步</label>
+          </div>
+          <div class="sync-progress" id="sync-progress" hidden>
+            <div class="sync-progress-head">正在同步…</div>
+            <div class="sync-progress-bar"><i></i></div>
+            <div class="sync-stats">
+              <div><strong id="sync-stat-fetched">0</strong><span>已拉取</span></div>
+              <div><strong id="sync-stat-pages">0</strong><span>已扫描页</span></div>
+              <div><strong id="sync-stat-newest">—</strong><span>最新时间戳</span></div>
+            </div>
+            <p class="sync-meta" id="sync-progress-tip">正在获取第一页数据…</p>
+          </div>
+          <div class="sync-result" id="sync-result" hidden></div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn" id="sync-cancel">关闭</button>
+          <button type="button" class="btn primary" id="sync-start">开始同步</button>
+        </div>
+      </div>
+    </div>
     <script type="module" src="./src/main.js"></script>
     <script type="module" src="./src/secondary.js"></script>
     <script type="module" src="./src/sync.js"></script>
