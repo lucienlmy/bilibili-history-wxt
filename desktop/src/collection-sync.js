@@ -132,6 +132,58 @@ async function syncAllCollections() {
   return { collections: folders.length, resources: allResources.length };
 }
 
+/** 在合集页注入同步按钮（不依赖 main.js 改动） */
+function injectCollectionUi() {
+  const b = globalThis.__bili;
+  if (!b || b.page !== "collections") return;
+
+  const content = b.contentEl || document.getElementById("content");
+  if (!content) return;
+
+  if (!document.getElementById("col-sync-all") && !document.querySelector(".col-sync-all")) {
+    const empty = content.querySelector(".empty");
+    const grid = content.querySelector(".folder-grid");
+    const head = document.createElement("div");
+    head.className = "music-list-head";
+    head.style.marginBottom = ".75rem";
+    head.innerHTML = `<h2 style="margin:0;font-size:1.1rem">订阅合集</h2>
+      <button type="button" class="col-sync-all" id="col-sync-all">同步全部</button>`;
+    if (grid) {
+      content.insertBefore(head, grid);
+    } else if (empty) {
+      content.insertBefore(head, empty);
+      if (!empty.dataset.colAligned) {
+        empty.dataset.colAligned = "1";
+        empty.innerHTML = `<p>还没有订阅合集数据</p>
+          <p>登录后点击「同步全部」从 B 站拉取订阅合集。</p>
+          <p style="margin-top:.75rem"><button type="button" class="empty-cta" id="col-empty-sync">同步全部合集</button></p>`;
+        document.getElementById("col-empty-sync")?.addEventListener("click", () => {
+          document.getElementById("col-sync-all")?.click();
+        });
+      }
+    } else {
+      content.prepend(head);
+    }
+  }
+
+  const back = document.getElementById("col-back");
+  if (back && !document.querySelector(".col-sync-one")) {
+    const id = globalThis.__biliActiveCollectionId;
+    if (id) {
+      const detailHead = document.createElement("div");
+      detailHead.className = "collection-detail-head";
+      const syncBtn = document.createElement("button");
+      syncBtn.type = "button";
+      syncBtn.className = "col-sync-one";
+      syncBtn.textContent = "同步内容";
+      syncBtn.setAttribute("data-col-sync", String(id));
+      back.replaceWith(detailHead);
+      detailHead.appendChild(back);
+      detailHead.appendChild(syncBtn);
+    }
+  }
+}
+
 function wireCollectionSyncButtons() {
   const syncAll =
     document.querySelector(".col-sync-all") || document.getElementById("col-sync-all");
@@ -230,10 +282,21 @@ function enhanceColEmpty() {
   const orig = b.render.bind(b);
   b.render = function () {
     orig();
+    injectCollectionUi();
     wireCollectionSyncButtons();
     enhanceColEmpty();
   };
   wireCollectionSyncButtons();
   enhanceColEmpty();
   b.syncAllCollections = syncAllCollections;
+
+  document.addEventListener("click", (e) => {
+    const col = e.target?.closest?.("[data-col]");
+    if (col) {
+      globalThis.__biliActiveCollectionId = col.getAttribute("data-col");
+    }
+    if (e.target?.closest?.("#col-back") || e.target?.id === "col-back") {
+      globalThis.__biliActiveCollectionId = null;
+    }
+  }, true);
 })();
