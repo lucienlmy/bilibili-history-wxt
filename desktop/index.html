@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bilibili History</title>
     <link rel="stylesheet" href="./src/styles.css" />
+    <link rel="stylesheet" href="./src/col-sync.css" />
     <link rel="stylesheet" href="./src/nav-sync.css" />
     <link rel="stylesheet" href="./src/secondary.css" />
   </head>
@@ -44,58 +45,57 @@
                     <h1 id="page-title">历史记录</h1>
                     <span class="count" id="page-count">0 个内容</span>
                   </div>
-                  <p class="sub" id="page-desc">搜索、筛选并管理你的本地观看记录</p>
+                  <p class="desc" id="page-desc">搜索、筛选并浏览本地备份中的观看记录</p>
                 </div>
                 <div class="toolbar-actions">
-                  <button type="button" class="btn primary" id="btn-sync-history" title="从 B 站拉取历史">
-                    <span>同步记录</span>
+                  <button type="button" class="btn" id="btn-login">登录</button>
+                  <button type="button" class="btn primary" id="btn-sync-history">同步记录</button>
+                  <button type="button" class="btn" id="btn-open-backup">打开备份</button>
+                  <button type="button" class="btn icon" id="btn-filters" title="筛选">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
                   </button>
-                  <button type="button" class="btn" id="btn-login" title="配置登录凭证"><span>登录</span></button>
-                  <button type="button" class="btn icon" id="btn-refresh" title="刷新列表">↻</button>
-                  <button type="button" class="btn icon" id="btn-view-settings" title="历史视图设置">⚙</button>
-                  <button type="button" class="btn icon" id="btn-toggle-filters" title="筛选">⇅</button>
                 </div>
               </div>
               <div class="filters" id="filters">
-                <div class="history-search-bar">
-                  <select id="search-kind" class="kind-select" title="搜索范围">
-                    <option value="all">综合</option>
+                <div class="filters-row">
+                  <input type="search" id="search" placeholder="搜索标题 / UP / BV" />
+                  <select id="search-kind">
+                    <option value="all">全部字段</option>
                     <option value="title">标题</option>
-                    <option value="up">UP主</option>
-                    <option value="bvid">BV号</option>
+                    <option value="up">UP 主</option>
+                    <option value="bvid">BV 号</option>
                   </select>
-                  <input id="search" type="search" placeholder="搜索标题、UP 主或视频编号" />
-                </div>
-                <div class="filters-row2">
-                  <div class="segment soft" id="display-mode" title="展示模式">
-                    <button type="button" data-mode="content" class="active">按视频</button>
-                    <button type="button" data-mode="visit">按观看</button>
-                  </div>
-                  <div class="select-wrap"><select id="type-filter"><option value="all">全部分类</option><option value="archive">视频</option><option value="live">直播</option><option value="pgc">番剧</option><option value="article">专栏</option><option value="cheese">课堂</option></select></div>
-                  <div class="date-range" title="选择日期"><input id="date-start" type="date" /><span class="date-sep">至</span><input id="date-end" type="date" /></div>
-                  <div class="select-wrap"><select id="sort"><option value="time-desc">时间倒序</option><option value="time-asc">时间正序</option><option value="title">标题</option></select></div>
-                  <div class="select-wrap"><select id="cols"><option value="auto">自动列数</option><option value="3">3 列</option><option value="4" selected>4 列</option><option value="5">5 列</option></select></div>
-                  <button type="button" class="clear-filters" id="btn-clear-filters" hidden>清除筛选</button>
+                  <select id="type-filter">
+                    <option value="all">全部类型</option>
+                    <option value="archive">视频</option>
+                    <option value="pgc">番剧</option>
+                    <option value="live">直播</option>
+                    <option value="article">专栏</option>
+                    <option value="article-list">文集</option>
+                    <option value="cheese">课堂</option>
+                  </select>
+                  <select id="sort">
+                    <option value="time-desc">时间从新到旧</option>
+                    <option value="time-asc">时间从旧到新</option>
+                    <option value="title">标题</option>
+                  </select>
+                  <select id="cols">
+                    <option value="auto">自动列数</option>
+                    <option value="3">3 列</option>
+                    <option value="4" selected>4 列</option>
+                    <option value="5">5 列</option>
+                  </select>
+                  <input type="date" id="date-start" />
+                  <input type="date" id="date-end" />
+                  <button type="button" class="btn" id="btn-clear-filters" hidden>清除筛选</button>
                 </div>
               </div>
             </div>
           </header>
-          <section id="content" class="content"></section>
-          <nav id="pagination" class="pagination" hidden></nav>
+          <div class="content" id="content"></div>
+          <div class="pagination" id="pagination" hidden></div>
+          <button type="button" class="scroll-top" id="scroll-top" hidden title="回到顶部">↑</button>
         </main>
-      </div>
-    </div>
-    <button type="button" class="scroll-top" id="scroll-top" title="返回顶部" hidden>↑</button>
-    <button type="button" id="btn-open-2" hidden>打开备份</button>
-    <div class="modal-mask" id="view-settings-modal" hidden>
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="vs-title">
-        <div class="modal-head"><h2 id="vs-title">历史视图设置</h2><button type="button" class="icon-btn" id="vs-close" aria-label="关闭">✕</button></div>
-        <div class="modal-body">
-          <label class="field"><span>网格列数</span><select id="vs-cols"><option value="auto">自动</option><option value="3">3 列</option><option value="4">4 列</option><option value="5">5 列</option></select></label>
-          <label class="field"><span>每页条数</span><select id="vs-page-size"><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label>
-          <p class="hint">桌面版设置保存在本机。</p>
-        </div>
-        <div class="modal-foot"><button type="button" class="btn" id="vs-cancel">取消</button><button type="button" class="btn primary" id="vs-save">保存</button></div>
       </div>
     </div>
     <div class="modal-mask" id="login-modal" hidden>
