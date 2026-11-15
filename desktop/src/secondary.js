@@ -234,11 +234,13 @@ function bootSecondary() {
     pageCount.textContent = "";
 
     const escapeHtmlSafe = (s) =>
-      String(s ?? "")
-        .replaceAll("&", "&")
-        .replaceAll("<", "<")
-        .replaceAll(">", ">")
-        .replaceAll('"', """);
+      String(s ?? "").replace(/[&<>"']/g, (ch) => {
+        if (ch === "&") return "&" + "amp;";
+        if (ch === "<") return "&" + "lt;";
+        if (ch === ">") return "&" + "gt;";
+        if (ch === '"') return "&" + "quot;";
+        return "&#39;";
+      });
 
     const renderPanel = async () => {
       let status = { path: null, last_dir_backup_at: null };
