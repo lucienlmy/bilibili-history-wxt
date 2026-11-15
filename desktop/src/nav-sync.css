@@ -19,7 +19,7 @@
   font-weight: 500;
 }
 .nav-sub:hover { background: var(--wash); color: var(--ink-soft); }
-.nav-sub.active { background: var(--brand-soft); color: var(--brand-strong); }
+.nav-sub.active { background: var(--brand); color: #fff; box-shadow: 0 1px 6px color-mix(in srgb, var(--brand) 30%, transparent); }
 .sidebar.collapsed .nav-children,
 .sidebar.collapsed .nav-parent .chev { display: none; }
 .sidebar.collapsed .nav-expand.open .nav-children { display: none; }
