@@ -145,3 +145,14 @@ html.dark .btn.danger { border-color: rgba(248,113,113,.25); background: rgba(24
   background: linear-gradient(135deg, #ff9ab8, var(--brand)); color: #fff;
 }
 a.btn { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+
+/* history card actions aligned with extension */
+.badge.top-right { right: 0.5rem; top: 0.5rem; background: rgba(0,0,0,.7); }
+.card-action {
+  flex-shrink: 0; width: 2.25rem; height: 2.25rem; border: 0; border-radius: 0.5rem;
+  background: transparent; color: var(--ink-muted); display: inline-flex; align-items: center; justify-content: center;
+  opacity: 0.55; cursor: pointer;
+}
+.card-action:hover { opacity: 1; background: #fef2f2; color: #dc2626; }
+html.dark .card-action:hover { background: rgba(248,113,113,.12); color: #fca5a5; }
+.history-card .card-title-row { align-items: flex-start; }
