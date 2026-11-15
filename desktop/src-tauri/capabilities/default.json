@@ -12,8 +12,13 @@
       "allow": [{ "path": "**" }]
     },
     {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
       "identifier": "dialog:allow-open"
     },
+    "dialog:allow-save",
     "opener:default",
     {
       "identifier": "opener:allow-open-url",
