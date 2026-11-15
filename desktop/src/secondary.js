@@ -290,10 +290,17 @@ function bootSecondary() {
     <div class="vb-list">${recentRows}</div>
   </div>`;
 
-      const go = (page) => {
+      const go = (pageId) => {
+        const navBtn =
+          document.querySelector(`[data-page="${pageId}"]`) ||
+          document.querySelector(`.nav-item[data-page="${pageId}"]`);
+        if (navBtn) {
+          navBtn.click();
+          return;
+        }
         const b = globalThis.__bili;
-        if (b) {
-          b.page = page;
+        if (b && "page" in b) {
+          b.page = pageId;
           b.render?.();
         }
       };
