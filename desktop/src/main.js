@@ -109,17 +109,9 @@ function buildNav() {
         const kids = it.children.map((c) =>
           `<button type="button" class="nav-sub${c.id === page ? " active" : ""}" data-page="${c.id}">${c.title}</button>`
         ).join("");
-        return `<div class="nav-expand${open ? " open" : ""}" data-group="${it.id}">
-          <button type="button" class="nav-item nav-parent${childActiveParent(it) ? " active" : ""}" data-toggle="${it.id}" title="${it.title}">
-            ${ICONS[it.icon] || ""}<span>${it.title}</span>
-            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-          <div class="nav-children">${kids}</div>
-        </div>`;
+        return `<div class="nav-expand${open ? " open" : ""}" data-group="${it.id}">\n          <button type="button" class="nav-item nav-parent${childActiveParent(it) ? " active" : ""}" data-toggle="${it.id}" title="${it.title}">\n            ${ICONS[it.icon] || ""}<span>${it.title}</span>\n            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>\n          </button>\n          <div class="nav-children">${kids}</div>\n        </div>`;
       }
-      return `<button type="button" class="nav-item${it.id === page ? " active" : ""}" data-page="${it.id}" title="${it.title}">
-        ${ICONS[it.icon] || ""}<span>${it.title}</span>
-      </button>`;
+      return `<button type="button" class="nav-item${it.id === page ? " active" : ""}" data-page="${it.id}" title="${it.title}">\n        ${ICONS[it.icon] || ""}<span>${it.title}</span>\n      </button>`;
     }).join("");
     return `<div class="group"><p class="group-label">${g.group}</p>${items}</div>`;
   }).join("");
@@ -278,47 +270,13 @@ function historyCard(item) {
       : item.progress > 0 && item.duration > 0
         ? formatDuration(item.progress) + " / " + formatDuration(item.duration) + " · " + pct + "%"
         : "";
-  return `<article class="history-card">
-    <a class="cover-wrap" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">
-      <img src="${escapeAttr(coverSrc(item.cover))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"
-        onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src='${escapeAttr(item.cover || "")}';}else{this.style.opacity='.15'}" />
-      ${pct > 0 && item.progress !== -1 ? `<div class="progress-track"><div class="progress-bar" style="width:${pct}%"></div></div>` : ""}
-      ${progressLabel ? `<span class="badge bottom-left">${escapeHtml(progressLabel)}</span>` : ""}
-      ${tag !== "视频" ? `<span class="badge bottom-right">${escapeHtml(tag)}</span>` : ""}
-      ${item.progress === -1 ? `<span class="badge top-left">已看完</span>` : ""}
-      ${item.is_fav ? `<span class="badge" style="right:0.5rem;top:0.5rem">已收藏</span>` : ""}
-    </a>
-    <div class="card-body">
-      <div class="card-title-row">
-        <h3 class="card-title"><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" title="${escapeAttr(item.title || "")}">${escapeHtml(item.title || "未命名内容")}</a></h3>
-        <span class="card-action" title="桌面只读，不可删除" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
-        </span>
-      </div>
-      <div class="card-meta">
-        <a href="https://space.bilibili.com/${Number(item.author_mid) || 0}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.author_name || "未知 UP 主")}</a>
-        <time>${fmtTime(item.view_at)}</time>
-      </div>
-    </div>
-  </article>`;
+  return `<article class="history-card">\n    <a class="cover-wrap" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">\n      <img src="${escapeAttr(coverSrc(item.cover))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"\n        onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src='${escapeAttr(item.cover || "")}';}else{this.style.opacity='.15'}" />\n      ${pct > 0 && item.progress !== -1 ? `<div class="progress-track"><div class="progress-bar" style="width:${pct}%"></div></div>` : ""}\n      ${progressLabel ? `<span class="badge bottom-left">${escapeHtml(progressLabel)}</span>` : ""}\n      ${tag !== "视频" ? `<span class="badge bottom-right">${escapeHtml(tag)}</span>` : ""}\n      ${item.progress === -1 ? `<span class="badge top-left">已看完</span>` : ""}\n      ${item.is_fav ? `<span class="badge" style="right:0.5rem;top:0.5rem">已收藏</span>` : ""}\n    </a>\n    <div class="card-body">\n      <div class="card-title-row">\n        <h3 class="card-title"><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" title="${escapeAttr(item.title || "")}">${escapeHtml(item.title || "未命名内容")}</a></h3>\n        <span class="card-action" title="桌面只读，不可删除" aria-hidden="true">\n          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>\n        </span>\n      </div>\n      <div class="card-meta">\n        <a href="https://space.bilibili.com/${Number(item.author_mid) || 0}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.author_name || "未知 UP 主")}</a>\n        <time>${fmtTime(item.view_at)}</time>\n      </div>\n    </div>\n  </article>`;
 }
 
 function resourceCard(item) {
   const bvid = item.bvid || item.bv_id || "";
   const url = bvid ? "https://www.bilibili.com/video/" + bvid : (item.link || "#");
-  return `<article class="history-card">
-    <a class="cover-wrap" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">
-      <img src="${escapeAttr(coverSrc(item.cover))}" alt="" loading="lazy" referrerpolicy="no-referrer"
-        onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src='${escapeAttr(item.cover || "")}';}else{this.style.opacity='.15'}" />
-    </a>
-    <div class="card-body">
-      <h3 class="card-title"><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || "未命名内容")}</a></h3>
-      <div class="card-meta">
-        <span>${escapeHtml(item.upper?.name || item.author || "-")}</span>
-        <time>${fmtTime(item.fav_time || item.added_at || item.pubdate)}</time>
-      </div>
-    </div>
-  </article>`;
+  return `<article class="history-card">\n    <a class="cover-wrap" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">\n      <img src="${escapeAttr(coverSrc(item.cover))}" alt="" loading="lazy" referrerpolicy="no-referrer"\n        onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src='${escapeAttr(item.cover || "")}';}else{this.style.opacity='.15'}" />\n    </a>\n    <div class="card-body">\n      <h3 class="card-title"><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || "未命名内容")}</a></h3>\n      <div class="card-meta">\n        <span>${escapeHtml(item.upper?.name || item.author || "-")}</span>\n        <time>${fmtTime(item.fav_time || item.added_at || item.pubdate)}</time>\n      </div>\n    </div>\n  </article>`;
 }
 
 function renderPagination(total) {
@@ -363,24 +321,28 @@ function getFilteredHistory() {
   const q = search.trim().toLowerCase();
   let items = displayMode === "visit" && (pack?.historyEvents || []).length
     ? pack.historyEvents.slice() : (pack?.history || []).slice();
-  if (typeFilter !== "all") items = items.filter((x) => x.business === typeFilter);
+  if (typeFilter !== "all") items = items.filter((x) => (x.business || "archive") === typeFilter);
   items = items.filter((x) => matchText(x, q) && inDateRange(x.view_at));
   return sortItems(items, "view_at");
 }
 
 function renderHistory() {
   const items = getFilteredHistory();
-  pageCount.textContent = items.length + " 个内容";
+  pageCount.textContent = items.length + " 条";
+  if (!pack) {
+    contentEl.innerHTML = `<div class="empty"><p>请先打开备份 JSON</p></div>`;
+    paginationEl.hidden = true;
+    return;
+  }
+  if (!items.length) {
+    contentEl.innerHTML = `<div class="empty"><p>没有匹配的历史记录</p></div>`;
+    paginationEl.hidden = true;
+    return;
+  }
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   if (currentPage > totalPages) currentPage = totalPages;
   const start = (currentPage - 1) * PAGE_SIZE;
   const shown = items.slice(start, start + PAGE_SIZE);
-  if (!shown.length) {
-    contentEl.innerHTML = `<div class="empty"><p>没有匹配的历史记录</p>${hasActiveFilters() ? `<p><button type="button" class="empty-cta" id="empty-clear">清除筛选</button></p>` : ""}</div>`;
-    document.getElementById("empty-clear")?.addEventListener("click", clearFilters);
-    paginationEl.hidden = true;
-    return;
-  }
   contentEl.innerHTML = `<div class="${gridClass()}">${shown.map(historyCard).join("")}</div>`;
   renderPagination(items.length);
 }
@@ -388,34 +350,22 @@ function renderHistory() {
 function getFilteredFavResources() {
   const q = search.trim().toLowerCase();
   let items = (pack?.favResources || []).slice();
-  if (activeFolderId != null) items = items.filter((x) => String(x.media_id || x.folder_id || "") === String(activeFolderId));
-  items = items.filter((x) => matchText(x, q) && inDateRange(x.fav_time || x.added_at || x.pubdate));
+  if (activeFolderId != null) {
+    items = items.filter((x) => String(x.media_id || x.folder_id || "") === String(activeFolderId));
+  }
+  items = items.filter((x) => matchText(x, q));
   return sortItems(items, "fav_time");
 }
 
 function renderFavorites() {
   const folders = pack?.favFolders || [];
-  if (!folders.length && !(pack?.favResources || []).length) {
-    pageCount.textContent = "0 个内容";
+  const items = getFilteredFavResources();
+  pageCount.textContent = items.length + " 个内容";
+  if (!folders.length && !items.length) {
     contentEl.innerHTML = `<div class="empty"><p>备份中没有收藏夹数据</p></div>`;
     paginationEl.hidden = true;
     return;
   }
-  if (activeFolderId == null && folders[0]) activeFolderId = folders[0].id ?? folders[0].media_id ?? folders[0].fid;
-  const items = getFilteredFavResources();
-  pageCount.textContent = items.length + " 个内容";
-  const folderHtml = folders.map((f) => {
-    const id = f.id ?? f.media_id ?? f.fid;
-    const active = String(id) === String(activeFolderId);
-    const count = (pack.favResources || []).filter((x) => String(x.media_id || x.folder_id || "") === String(id)).length;
-    return `<div class="fav-folder-item${active ? " active" : ""}">
-      <button type="button" class="fav-folder-main" data-folder="${escapeAttr(String(id))}">
-        <h3>${escapeHtml(f.title || f.name || "未命名收藏夹")}</h3>
-        <p>${count} 个内容</p>
-      </button>
-      <button type="button" class="fav-folder-more" title="只读" disabled>···</button>
-    </div>`;
-  }).join("");
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   if (currentPage > totalPages) currentPage = totalPages;
   const start = (currentPage - 1) * PAGE_SIZE;
@@ -423,13 +373,13 @@ function renderFavorites() {
   const grid = shown.length
     ? `<div class="${gridClass()}">${shown.map(resourceCard).join("")}</div>`
     : `<div class="empty"><p>此收藏夹暂无内容</p></div>`;
-  contentEl.innerHTML = `<div class="fav-layout">
-    <aside class="fav-folders">
-      <div class="fav-folders-head"><span class="fav-head-title">收藏夹</span><button type="button" class="fav-sync-all" disabled>同步全部</button></div>
-      ${folderHtml || `<div class="empty" style="margin:1rem"><p>无收藏夹</p></div>`}
-    </aside>
-    <div class="fav-main">${grid}</div>
-  </div>`;
+  const folderList = folders.map((f) => {
+    const id = f.id ?? f.media_id;
+    const active = String(activeFolderId) === String(id) ? " active" : "";
+    const count = (pack?.favResources || []).filter((x) => String(x.media_id || x.folder_id || "") === String(id)).length;
+    return `<button type="button" class="fav-folder${active}" data-folder="${escapeAttr(String(id))}">\n      <span class="fav-folder-name">${escapeHtml(f.title || f.name || "未命名")}</span>\n      <span class="fav-folder-count">${count}</span>\n    </button>`;
+  }).join("");
+  contentEl.innerHTML = `<div class="fav-layout">\n    <aside class="fav-aside">\n      <div class="fav-folders-head"><span class="fav-head-title">收藏夹</span><button type="button" class="fav-sync-all" disabled>同步全部</button></div>\n      <div class="fav-folders">${folderList || "<p class=\"muted\">无收藏夹</p>"}</div>\n    </aside>\n    <div class="fav-main">${grid}</div>\n  </div>`;
   contentEl.querySelectorAll("[data-folder]").forEach((btn) => {
     btn.addEventListener("click", () => { activeFolderId = btn.getAttribute("data-folder"); currentPage = 1; render(); });
   });
@@ -442,8 +392,16 @@ function renderMusic() {
   items = items.filter((x) => matchText(x, q));
   items = sortItems(items, "fav_time");
   pageCount.textContent = items.length + " 首";
+  // 供播放器切歌使用（全量过滤后的列表，不只当前页）
+  const playlist = items.map((item) => ({
+    bvid: item.bvid || item.bv_id || "",
+    title: item.title || "未命名",
+    cover: item.cover || "",
+    author: item.upper?.name || item.author || "",
+  }));
+  if (globalThis.__bili) globalThis.__bili.musicPlaylist = playlist;
   if (!items.length) {
-    contentEl.innerHTML = `<div class="empty"><p>备份中没有喜欢的音乐</p></div>`;
+    contentEl.innerHTML = `<div class="empty"><p>还没有喜欢的音乐</p><p>可从备份 JSON 导入，或登录后从 B 站同步。</p></div>`;
     paginationEl.hidden = true;
     return;
   }
@@ -451,31 +409,13 @@ function renderMusic() {
   if (currentPage > totalPages) currentPage = totalPages;
   const start = (currentPage - 1) * PAGE_SIZE;
   const shown = items.slice(start, start + PAGE_SIZE);
-  const rows = shown.map((item) => {
+  const rows = shown.map((item, i) => {
     const bvid = item.bvid || item.bv_id || "";
     const url = bvid ? "https://www.bilibili.com/video/" + bvid : (item.link || "#");
-    return `<article class="music-row">
-      <img class="music-cover" src="${escapeAttr(coverSrc(item.cover))}" alt="" loading="lazy" referrerpolicy="no-referrer"
-        onerror="this.style.opacity='.2'" />
-      <div class="music-body">
-        <h3 class="music-title"><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || "未命名")}</a></h3>
-        <div class="music-sub">
-          <span>${escapeHtml(item.upper?.name || item.author || "-")}</span>
-          <time>${fmtTime(item.fav_time || item.pubdate)}</time>
-        </div>
-      </div>
-    </article>`;
+    const globalIdx = start + i;
+    return `<article class="music-row" data-bvid="${escapeAttr(bvid)}" data-idx="${globalIdx}">\n      <button type="button" class="music-play-btn" title="播放" aria-label="播放">▶</button>\n      <img class="music-cover" src="${escapeAttr(coverSrc(item.cover))}" alt="" loading="lazy" referrerpolicy="no-referrer"\n        onerror="this.style.opacity='.2'" />\n      <div class="music-body">\n        <h3 class="music-title"><a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || "未命名")}</a></h3>\n        <div class="music-sub">\n          <span>${escapeHtml(item.upper?.name || item.author || "-")}</span>\n          <time>${fmtTime(item.fav_time || item.pubdate)}</time>\n        </div>\n      </div>\n    </article>`;
   }).join("");
-  contentEl.innerHTML = `<div class="music-page">
-    <div class="music-player-bar">
-      <div class="music-player-left">
-        <h2>我喜欢的音乐</h2>
-        <div class="music-controls"><button type="button" class="music-play" disabled title="桌面只读">▶</button></div>
-      </div>
-      <p class="music-player-hint">桌面只读版不播放音频，点击标题可在浏览器打开</p>
-    </div>
-    <div class="music-list">${rows}</div>
-  </div>`;
+  contentEl.innerHTML = `<div class="music-page">\n    <div class="music-list-head">\n      <h2>我喜欢的音乐</h2>\n      <span class="music-list-count">${items.length} 首 · 点击播放</span>\n    </div>\n    <div class="music-list">${rows}</div>\n  </div>`;
   renderPagination(items.length);
 }
 
@@ -493,10 +433,7 @@ function renderCollections() {
     if (currentPage > totalPages) currentPage = totalPages;
     const start = (currentPage - 1) * PAGE_SIZE;
     const shown = items.slice(start, start + PAGE_SIZE);
-    contentEl.innerHTML = `
-      <button type="button" class="collection-back" id="col-back">← 返回合集列表</button>
-      <h2 style="margin:0 0 1rem;font-size:1.1rem">${escapeHtml(col?.title || col?.name || "合集")}</h2>
-      ${shown.length ? `<div class="${gridClass()}">${shown.map(resourceCard).join("")}</div>` : `<div class="empty"><p>此合集暂无内容</p></div>`}`;
+    contentEl.innerHTML = `\n      <button type="button" class="collection-back" id="col-back">← 返回合集列表</button>\n      <h2 style="margin:0 0 1rem;font-size:1.1rem">${escapeHtml(col?.title || col?.name || "合集")}</h2>\n      ${shown.length ? `<div class="${gridClass()}">${shown.map(resourceCard).join("")}</div>` : `<div class="empty"><p>此合集暂无内容</p></div>`}`;
     document.getElementById("col-back")?.addEventListener("click", () => { activeCollectionId = null; currentPage = 1; render(); });
     renderPagination(items.length);
     return;
@@ -510,10 +447,7 @@ function renderCollections() {
   contentEl.innerHTML = `<div class="folder-grid">${colsList.map((c) => {
     const id = c.id ?? c.season_id;
     const count = resources.filter((x) => String(x.season_id || x.collection_id || "") === String(id)).length;
-    return `<button type="button" class="folder" data-col="${escapeAttr(String(id))}">
-      <h3>${escapeHtml(c.title || c.name || "未命名合集")}</h3>
-      <p>${count} 个内容</p>
-    </button>`;
+    return `<button type="button" class="folder" data-col="${escapeAttr(String(id))}">\n      <h3>${escapeHtml(c.title || c.name || "未命名合集")}</h3>\n      <p>${count} 个内容</p>\n    </button>`;
   }).join("")}</div>`;
   contentEl.querySelectorAll("[data-col]").forEach((btn) => {
     btn.addEventListener("click", () => { activeCollectionId = btn.getAttribute("data-col"); currentPage = 1; render(); });
@@ -521,70 +455,25 @@ function renderCollections() {
   paginationEl.hidden = true;
 }
 
-function renderPlaceholder() {
-  contentEl.innerHTML = `<div class="empty">
-    <p>此页面在桌面只读版中为界面占位</p>
-    <p>实际数据请使用扩展导出后，在「历史记录 / 收藏夹 / 合集 / 我喜欢的音乐」中查看</p>
-    <p><button type="button" class="empty-cta" id="empty-open">打开备份</button></p>
-  </div>`;
-  document.getElementById("empty-open")?.addEventListener("click", () => void openBackup());
-  paginationEl.hidden = true;
-  pageCount.textContent = "";
-}
-
 function renderAbout() {
-  pageCount.textContent = "";
+  contentEl.innerHTML = `<div class="about-page">\n    <h2>Bilibili 无限历史记录 · 桌面版</h2>\n    <p>从扩展备份 JSON 读取并展示历史、收藏、音乐与合集。</p>\n    <div class="kv"><span>导出时间</span><span>${escapeHtml(pack?.exportedAt || "—")}</span></div>\n  </div>`;
   paginationEl.hidden = true;
-  const hist = pack?.history?.length || 0;
-  const visits = pack?.historyEvents?.length || 0;
-  const favs = pack?.favFolders?.length || 0;
-  const music = pack?.likedMusic?.length || 0;
-  contentEl.innerHTML = `
-  <div class="panel-stack">
-    <div class="panel-card">
-      <div class="panel-head"><h3>关于 · 无限历史记录（桌面）</h3><span class="chip ok">只读</span></div>
-      <p class="panel-desc">界面按浏览器扩展主布局对齐。数据<strong>仅来自</strong>扩展导出的备份 JSON，不登录、不同步、不写回。</p>
-      <ul class="bullet-list">
-        <li>兼容 formatVersion: 2 完整备份包</li>
-        <li>兼容旧版顶层 HistoryItem[]</li>
-        <li>点击视频 / UP 主链接用系统浏览器打开</li>
-      </ul>
-      <div class="kv"><span>当前文件</span><span>${escapeHtml(sourceName || "未加载")}</span></div>
-      <div class="kv"><span>导出时间</span><span>${escapeHtml(pack?.exportedAt || "—")}</span></div>
-      <div class="kv"><span>数据概览</span><span>历史 ${hist} · 观看 ${visits} · 收藏夹 ${favs} · 音乐 ${music}</span></div>
-      <div class="panel-actions">
-        <button type="button" class="btn primary" id="about-open">打开备份</button>
-        <a class="btn" href="https://github.com/lucienlmy/bilibili-history-wxt" target="_blank" rel="noopener">项目主页</a>
-      </div>
-    </div>
-  </div>`;
-  document.getElementById("about-open")?.addEventListener("click", () => void openBackup());
 }
 
-function renderEmpty() {
-  pageCount.textContent = "0";
+function renderPlaceholder(title, desc) {
+  contentEl.innerHTML = `<div class="empty"><h3>${escapeHtml(title)}</h3><p>${escapeHtml(desc || "此页面在桌面版中为界面占位")}</p></div>`;
   paginationEl.hidden = true;
-  contentEl.innerHTML = `<div class="empty">
-    <p>请打开扩展导出的备份 JSON</p>
-    <p>支持 bilibili-history-*.json</p>
-    <p><button type="button" class="empty-cta" id="empty-open">打开备份</button></p>
-  </div>`;
-  document.getElementById("empty-open")?.addEventListener("click", () => void openBackup());
 }
-
-const SECONDARY_PAGES = new Set([
-  "settings", "cloud", "video-backup", "ai", "feedback", "reward",
-  "backup-local", "backup-webdav", "backup-json", "music-search",
-]);
 
 function render() {
-  const meta = PAGE_META[page] || PAGE_META.history;
+  buildNav();
+  const meta = PAGE_META[page] || [page, ""];
   pageTitle.textContent = meta[0];
   pageDesc.textContent = meta[1];
-  buildNav();
-  if (!pack && !SECONDARY_PAGES.has(page) && page !== "about") {
-    renderEmpty();
-    updateClearBtn();
+  updateClearBtn();
+  const R = globalThis.__BILI_PAGE_RENDERERS || {};
+  if (typeof R[page] === "function") {
+    R[page]();
     return;
   }
   if (page === "history") renderHistory();
@@ -592,48 +481,7 @@ function render() {
   else if (page === "music") renderMusic();
   else if (page === "collections") renderCollections();
   else if (page === "about") renderAbout();
-  else {
-    const R = globalThis.__BILI_PAGE_RENDERERS || {};
-    if (typeof R[page] === "function") R[page]();
-    else renderPlaceholder();
-  }
-  updateClearBtn();
-}
-
-async function openBackup() {
-  try {
-    const { open } = await import("@tauri-apps/plugin-dialog");
-    const { readTextFile } = await import("@tauri-apps/plugin-fs");
-    const selected = await open({ multiple: false, filters: [{ name: "JSON", extensions: ["json"] }] });
-    if (!selected) return;
-    contentEl.innerHTML = skeletonHtml();
-    paginationEl.hidden = true;
-    const path = typeof selected === "string" ? selected : selected.path || selected;
-    pack = normalizeBackup(JSON.parse(await readTextFile(path)));
-    sourceName = String(path).split(/[/\\]/).pop() || String(path);
-    activeFolderId = null; activeCollectionId = null; currentPage = 1;
-    fileMeta.textContent = sourceName + "\n历史 " + pack.history.length + " · 收藏 " + pack.favFolders.length + " · 音乐 " + pack.likedMusic.length;
-    render();
-  } catch (err) {
-    const input = document.createElement("input");
-    input.type = "file"; input.accept = "application/json,.json";
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      try {
-        contentEl.innerHTML = skeletonHtml();
-        paginationEl.hidden = true;
-        pack = normalizeBackup(JSON.parse(await file.text()));
-        sourceName = file.name;
-        activeFolderId = null; activeCollectionId = null; currentPage = 1;
-        fileMeta.textContent = sourceName + "\n历史 " + pack.history.length + " · 收藏 " + pack.favFolders.length + " · 音乐 " + pack.likedMusic.length;
-        render();
-      } catch (e) {
-        fileMeta.textContent = "加载失败：" + (e?.message || String(e));
-      }
-    };
-    input.click();
-  }
+  else renderPlaceholder(meta[0], meta[1]);
 }
 
 function resetAndRender() {
@@ -641,24 +489,56 @@ function resetAndRender() {
   render();
 }
 
-document.getElementById("btn-open-2")?.addEventListener("click", () => void openBackup());
-document.getElementById("btn-refresh")?.addEventListener("click", () => render());
+async function openBackup() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      pack = normalizeBackup(JSON.parse(text));
+      sourceName = file.name;
+      fileMeta.textContent = sourceName + "\n历史 " + pack.history.length + " · 收藏 " + pack.favFolders.length + " · 音乐 " + pack.likedMusic.length;
+      currentPage = 1;
+      page = "history";
+      render();
+    } catch (e) {
+      alert("打开失败：" + (e?.message || e));
+    }
+  };
+  input.click();
+}
+
+async function openExternal(url) {
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("open_external", { url });
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
+function pickHttpUrl(el) {
+  const a = el.closest("a[href]");
+  if (!a) return null;
+  const href = a.getAttribute("href") || "";
+  if (href.startsWith("http://") || href.startsWith("https://")) return href;
+  return null;
+}
+
+document.getElementById("btn-open")?.addEventListener("click", () => void openBackup());
+document.getElementById("btn-clear-filters")?.addEventListener("click", clearFilters);
+document.getElementById("btn-toggle-filters")?.addEventListener("click", () => {
+  filtersOpen = !filtersOpen;
+  filtersEl.hidden = !filtersOpen;
+});
+document.getElementById("brand-home")?.addEventListener("click", () => { page = "history"; currentPage = 1; render(); });
 document.getElementById("btn-collapse")?.addEventListener("click", () => {
   collapsed = !collapsed;
   sidebar.classList.toggle("collapsed", collapsed);
 });
-document.getElementById("brand-home")?.addEventListener("click", () => {
-  if (collapsed) { collapsed = false; sidebar.classList.remove("collapsed"); return; }
-  page = "history"; currentPage = 1; render();
-});
-document.getElementById("btn-toggle-filters")?.addEventListener("click", () => {
-  filtersOpen = !filtersOpen;
-  filtersEl.classList.toggle("collapsed", !filtersOpen);
-});
-document.getElementById("btn-theme")?.addEventListener("click", () => {
-  document.documentElement.classList.toggle("dark");
-});
-document.getElementById("btn-clear-filters")?.addEventListener("click", clearFilters);
 
 searchEl?.addEventListener("input", () => { search = searchEl.value; resetAndRender(); });
 searchKindEl?.addEventListener("change", () => { searchKind = searchKindEl.value; resetAndRender(); });
@@ -668,26 +548,18 @@ colsEl?.addEventListener("change", () => { cols = colsEl.value; render(); });
 dateStartEl?.addEventListener("change", () => { dateStart = dateStartEl.value; resetAndRender(); });
 dateEndEl?.addEventListener("change", () => { dateEnd = dateEndEl.value; resetAndRender(); });
 
-document.getElementById("display-mode")?.addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-mode]");
-  if (!btn) return;
-  displayMode = btn.getAttribute("data-mode") || "content";
-  document.querySelectorAll("#display-mode [data-mode]").forEach((b) => b.classList.toggle("active", b === btn));
-  resetAndRender();
-});
-
 navEl?.addEventListener("click", (e) => {
-  const toggle = e.target.closest("[data-toggle]");
-  if (toggle) {
-    const id = toggle.getAttribute("data-toggle");
+  const t = e.target.closest("[data-page],[data-toggle]");
+  if (!t) return;
+  if (t.hasAttribute("data-toggle")) {
+    const id = t.getAttribute("data-toggle");
     if (openGroups.has(id)) openGroups.delete(id); else openGroups.add(id);
     buildNav();
     return;
   }
-  const btn = e.target.closest("[data-page]");
-  if (!btn) return;
-  page = btn.getAttribute("data-page") || "history";
+  page = t.getAttribute("data-page");
   currentPage = 1;
+  activeFolderId = null;
   activeCollectionId = null;
   render();
 });
@@ -696,77 +568,11 @@ paginationEl?.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-pg]");
   if (!btn || btn.disabled) return;
   const n = Number(btn.getAttribute("data-pg"));
-  if (!Number.isFinite(n) || n < 1) return;
-  currentPage = n;
-  render();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (n >= 1) { currentPage = n; render(); window.scrollTo({ top: 0, behavior: "smooth" }); }
 });
 
-const vsModal = document.getElementById("view-settings-modal");
-document.getElementById("btn-view-settings")?.addEventListener("click", () => {
-  const vsCols = document.getElementById("vs-cols");
-  const vsPs = document.getElementById("vs-page-size");
-  if (vsCols) vsCols.value = cols;
-  if (vsPs) vsPs.value = String(PAGE_SIZE);
-  if (vsModal) vsModal.hidden = false;
-});
-document.getElementById("vs-close")?.addEventListener("click", () => { if (vsModal) vsModal.hidden = true; });
-document.getElementById("vs-cancel")?.addEventListener("click", () => { if (vsModal) vsModal.hidden = true; });
-document.getElementById("vs-save")?.addEventListener("click", () => {
-  const vsCols = document.getElementById("vs-cols");
-  const vsPs = document.getElementById("vs-page-size");
-  if (vsCols) { cols = vsCols.value; if (colsEl) colsEl.value = cols; }
-  if (vsPs) PAGE_SIZE = Number(vsPs.value) || 100;
-  if (vsModal) vsModal.hidden = true;
-  resetAndRender();
-});
-vsModal?.addEventListener("click", (e) => { if (e.target === vsModal) vsModal.hidden = true; });
-
-window.addEventListener("scroll", () => {
-  if (scrollTopBtn) scrollTopBtn.hidden = window.scrollY < 400;
-});
 scrollTopBtn?.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
-
-window.addEventListener("keydown", (e) => {
-  if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-    const t = e.target;
-    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
-    e.preventDefault(); searchEl?.focus();
-  }
-});
-
-async function openExternal(url) {
-  if (!url || url === "#" || url.startsWith("javascript:")) return;
-  try {
-    const { invoke } = await import("@tauri-apps/api/core");
-    await invoke("open_external", { url });
-    return;
-  } catch (err) {
-    console.warn("[openExternal] invoke failed", err);
-  }
-  try {
-    const { openUrl } = await import("@tauri-apps/plugin-opener");
-    await openUrl(url);
-    return;
-  } catch (err) {
-    console.warn("[openExternal] plugin-opener failed", err);
-  }
-  try {
-    window.open(url, "_blank", "noopener,noreferrer");
-  } catch (err) {
-    console.error("[openExternal] all methods failed", err);
-  }
-}
-
-function pickHttpUrl(el) {
-  if (!el) return "";
-  const a = el.closest?.("a[href]") || (el.tagName === "A" ? el : null);
-  if (a) {
-    const href = a.getAttribute("href") || "";
-    if (href.startsWith("http://") || href.startsWith("https://")) return href;
-  }
-  return "";
-}
+window.addEventListener("scroll", () => { if (scrollTopBtn) scrollTopBtn.hidden = window.scrollY < 400; });
 
 document.addEventListener("click", (e) => {
   if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
