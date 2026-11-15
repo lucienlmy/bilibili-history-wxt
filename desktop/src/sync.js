@@ -207,13 +207,16 @@ async function runSync() {
         " · 音乐 " +
         (pack.likedMusic?.length || 0);
     }
+    if (typeof b.persistPack === "function") {
+      try { await b.persistPack(); } catch (err) { console.warn("[sync] persistPack", err); }
+    }
     if (typeof b.resetAndRender === "function") b.resetAndRender();
     else if (typeof b.render === "function") b.render();
 
     if (result) {
       result.hidden = false;
       result.className = "sync-result ok";
-      result.textContent = `${full ? "全量" : "增量"}同步完成：共拉取 ${fetched} 条（${pages} 页）`;
+      result.textContent = `${full ? "全量" : "增量"}同步完成：共拉取 ${fetched} 条（${pages} 页），已保存到本地缓存`;
     }
     await refreshSyncMeta();
   } catch (e) {
