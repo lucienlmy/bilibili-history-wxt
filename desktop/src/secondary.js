@@ -1,235 +1,158 @@
-/** Secondary page UI shells for desktop read-only viewer */
-
-const PREF_KEY = "bili-desktop-prefs";
-
-function loadPrefs() {
-  try {
-    return JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {};
-  } catch {
-    return {};
-  }
-}
-
-function savePrefs(patch) {
-  const next = { ...loadPrefs(), ...patch };
-  localStorage.setItem(PREF_KEY, JSON.stringify(next));
-  return next;
-}
+/** Secondary pages — settings UI closer to extension + other panels */
 
 function bootSecondary() {
   const R = globalThis.__BILI_PAGE_RENDERERS || (globalThis.__BILI_PAGE_RENDERERS = {});
-  const api = () => globalThis.__bili;
-  if (!api()) {
-    setTimeout(bootSecondary, 50);
-    return;
+
+  function g() {
+    const b = globalThis.__bili || {};
+    return {
+      contentEl: b.contentEl,
+      pageCount: b.pageCount,
+      paginationEl: b.paginationEl,
+      pack: b.pack,
+      sourceName: b.sourceName,
+      fileMeta: b.fileMeta,
+      cols: b.cols,
+      PAGE_SIZE: b.PAGE_SIZE,
+      colsEl: b.colsEl,
+      escapeHtml: b.escapeHtml || ((s) => String(s ?? "")),
+      openBackup: b.openBackup,
+      render: b.render,
+      setCols(v) { if (b) b.cols = v; },
+      setPageSize(v) { if (b) b.PAGE_SIZE = v; },
+    };
   }
-  const g = () => api();
-  const pageShellNote = (text) => `<div class="note-banner">${text}</div>`;
-  const settingRow = (title, desc, controlHtml, disabled = false) =>
-    `<div class="setting-card${disabled ? " is-disabled" : ""}">
-    <div class="setting-card-text"><h3>${title}</h3><p>${desc}</p></div>
-    <div class="setting-card-ctrl">${controlHtml}</div>
-  </div>`;
+
+  function pageShellNote(text) {
+    return `<div class="note-banner">${text}</div>`;
+  }
+
+  function loadPrefs() {
+    try {
+      return JSON.parse(localStorage.getItem("bili-desktop-settings") || "{}");
+    } catch {
+      return {};
+    }
+  }
+  function savePrefs(p) {
+    localStorage.setItem("bili-desktop-settings", JSON.stringify(p));
+  }
 
   R.settings = function () {
-    const {
-      contentEl, pageCount, paginationEl, pack, sourceName, cols, PAGE_SIZE, colsEl,
-      escapeHtml, openBackup, render,
-    } = g();
+    const { contentEl, pageCount, paginationEl, cols, PAGE_SIZE, colsEl, openBackup } = g();
     paginationEl.hidden = true;
     pageCount.textContent = "";
     const prefs = loadPrefs();
-    const hist = pack?.history?.length || 0;
-    const visits = pack?.historyEvents?.length || 0;
-    const favs = pack?.favFolders?.length || 0;
-    const music = pack?.likedMusic?.length || 0;
-    const syncInterval = prefs.syncInterval ?? 30;
-    const isSyncDelete = prefs.isSyncDelete !== false;
-    const isSyncDeleteFromBilibili = prefs.isSyncDeleteFromBilibili !== false;
-    const dateMode = prefs.dateSelectionMode || "range";
-    const loadMode = prefs.historyLoadMode || "pagination";
-    const hiddenMenus = new Set(prefs.hiddenMenus || []);
-
-    const menuOptions = [
-      ["ai", "AI探索"],
-      ["cloud", "云同步"],
-      ["video-backup", "视频备份"],
-      ["music-group", "听歌"],
-      ["feedback", "反馈"],
-      ["reward", "赞赏"],
-    ];
 
     contentEl.innerHTML = `
-  ${pageShellNote("桌面版设置会写入本机 localStorage。与 B 站同步、清空扩展库等操作在桌面端不可用，界面按扩展原版还原。")}
   <div class="settings-grid">
-    <section class="settings-col">
-      <h2 class="settings-col-title">数据与存储管理</h2>
-      ${settingRow("当前备份", sourceName ? escapeHtml(sourceName) : "尚未加载", `<button type="button" class="btn primary" id="set-open">打开备份</button>`, false)}
-      ${settingRow("本地数据概览", `历史内容 ${hist} · 观看事件 ${visits} · 收藏夹 ${favs} · 音乐 ${music}`, `<span class="chip ok">JSON</span>`, false)}
-      ${settingRow("首次引导", "扩展内可重新查看历史记录和备份介绍；桌面版无引导弹窗", `<button type="button" class="btn soft" id="set-guide">查看说明</button>`, false)}
-      ${settingRow("本地存储保护", "扩展检查 IndexedDB 持久化；桌面版直接读取你打开的备份文件", `<button type="button" class="btn soft" id="set-storage">刷新概览</button>`, false)}
-      ${settingRow("恢复出厂设置", "清除桌面端本地偏好（列数/每页/开关等），不会删除备份文件", `<button type="button" class="btn danger" id="set-reset">恢复默认</button>`, false)}
-    </section>
-
-    <section class="settings-col">
-      <h2 class="settings-col-title">同步偏好（扩展能力，桌面仅保存选项）</h2>
-      ${settingRow("历史记录自动同步时间间隔", "单位：分钟。桌面版不会真正发起同步", `
-        <div class="stepper">
-          <button type="button" id="si-minus">-</button>
-          <input id="si-val" value="${syncInterval}" />
-          <button type="button" id="si-plus">+</button>
-        </div>`, false)}
-      ${settingRow("同步删除：插件 → B站", "在本地删除后尝试同步到 B 站（扩展功能）", `
-        <label class="switch"><input type="checkbox" id="sd-to-bili" ${isSyncDelete ? "checked" : ""}><span></span></label>`, false)}
-      ${settingRow("同步删除：B站 → 插件", "在 B 站删除后同步到本地（扩展功能）", `
-        <label class="switch"><input type="checkbox" id="sd-from-bili" ${isSyncDeleteFromBilibili ? "checked" : ""}><span></span></label>`, false)}
-    </section>
-
-    <section class="settings-col">
-      <h2 class="settings-col-title">历史记录加载方式</h2>
-      ${settingRow("数据加载方式", "控制历史记录页分页或滚动加载（桌面当前使用分页）", `
-        <div class="radio-row">
-          <label><input type="radio" name="loadMode" value="pagination" ${loadMode === "pagination" ? "checked" : ""}> 分页加载</label>
-          <label><input type="radio" name="loadMode" value="scroll" ${loadMode === "scroll" ? "checked" : ""}> 下拉加载</label>
-        </div>`, false)}
-      ${settingRow("网格列数", "历史卡片列数，立即生效", `
-        <select id="set-cols">
-          <option value="auto">自动</option>
-          <option value="3">3 列</option>
-          <option value="4">4 列</option>
-          <option value="5">5 列</option>
-        </select>`, false)}
-      ${settingRow("每页条数", "历史 / 收藏分页大小，立即生效", `
-        <select id="set-page-size">
-          <option value="50">50</option>
-          <option value="100">100</option>
-          <option value="200">200</option>
-        </select>`, false)}
-    </section>
-
-    <section class="settings-col">
-      <h2 class="settings-col-title">界面管理</h2>
-      ${settingRow("日期选择方式", "历史筛选日期控件：区间或单日（桌面筛选条为区间）", `
-        <div class="radio-row">
-          <label><input type="radio" name="dateMode" value="range" ${dateMode === "range" ? "checked" : ""}> 日期区间</label>
-          <label><input type="radio" name="dateMode" value="single" ${dateMode === "single" ? "checked" : ""}> 单日</label>
-        </div>`, false)}
-      ${settingRow("侧边栏菜单管理", "勾选后在侧栏隐藏对应入口（仅保存偏好）", `
-        <div class="menu-hide-list" id="menu-hide">
-          ${menuOptions.map(([id, label]) =>
-            `<label class="check-line"><input type="checkbox" data-hide="${id}" ${hiddenMenus.has(id) ? "checked" : ""}> ${label}</label>`
-          ).join("")}
-        </div>`, false)}
-    </section>
+    <div class="settings-col">
+      <h3 class="settings-col-title">界面与列表</h3>
+      <div class="setting-card">
+        <div class="setting-card-text">
+          <h3>网格列数</h3>
+          <p>历史记录卡片每行列数</p>
+        </div>
+        <div class="setting-card-ctrl">
+          <select id="set-cols">
+            <option value="auto">自动</option>
+            <option value="3">3 列</option>
+            <option value="4">4 列</option>
+            <option value="5">5 列</option>
+          </select>
+        </div>
+      </div>
+      <div class="setting-card">
+        <div class="setting-card-text">
+          <h3>每页条数</h3>
+          <p>分页时每页显示数量</p>
+        </div>
+        <div class="setting-card-ctrl">
+          <select id="set-page-size">
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="200">200</option>
+          </select>
+        </div>
+      </div>
+      <div class="setting-card">
+        <div class="setting-card-text">
+          <h3>数据备份入口</h3>
+          <p>导入 / 导出请到「数据备份 → JSON 文件」</p>
+        </div>
+        <div class="setting-card-ctrl">
+          <button type="button" class="btn soft" id="set-json">打开 JSON 页</button>
+        </div>
+      </div>
+    </div>
+    <div class="settings-col">
+      <h3 class="settings-col-title">同步与账号</h3>
+      <div class="setting-card">
+        <div class="setting-card-text">
+          <h3>B 站登录</h3>
+          <p>通过工具栏「登录」配置 SESSDATA</p>
+        </div>
+        <div class="setting-card-ctrl"><span class="chip ok">可用</span></div>
+      </div>
+      <div class="setting-card">
+        <div class="setting-card-text">
+          <h3>历史同步</h3>
+          <p>工具栏「同步记录」支持增量 / 全量</p>
+        </div>
+        <div class="setting-card-ctrl"><span class="chip ok">可用</span></div>
+      </div>
+      <div class="setting-card is-disabled">
+        <div class="setting-card-text">
+          <h3>自动同步策略</h3>
+          <p>扩展侧定时策略，桌面版后续再对齐</p>
+        </div>
+        <div class="setting-card-ctrl"><span class="chip">暂不可用</span></div>
+      </div>
+    </div>
   </div>`;
 
-    const setCols = document.getElementById("set-cols");
-    const setPs = document.getElementById("set-page-size");
-    if (setCols) setCols.value = cols;
-    if (setPs) setPs.value = String(PAGE_SIZE);
+    const colsSel = document.getElementById("set-cols");
+    const pageSel = document.getElementById("set-page-size");
+    if (colsSel) colsSel.value = String(cols || prefs.cols || "4");
+    if (pageSel) pageSel.value = String(PAGE_SIZE || prefs.pageSize || 100);
 
-    document.getElementById("set-open")?.addEventListener("click", () => void openBackup());
-    document.getElementById("set-storage")?.addEventListener("click", () => R.settings());
-    document.getElementById("set-guide")?.addEventListener("click", () => {
-      contentEl.insertAdjacentHTML(
-        "afterbegin",
-        `<div class="note-banner" id="guide-note">桌面只读版：用右上角「打开备份」加载扩展导出的 JSON；历史 / 收藏 / 合集 / 音乐可浏览；点击卡片用系统浏览器打开 B 站。</div>`,
-      );
+    colsSel?.addEventListener("change", () => {
+      const b = globalThis.__bili;
+      if (!b) return;
+      b.cols = colsSel.value;
+      if (b.colsEl) b.colsEl.value = colsSel.value;
+      const p = loadPrefs();
+      p.cols = colsSel.value;
+      savePrefs(p);
+      b.render?.();
     });
-    document.getElementById("set-reset")?.addEventListener("click", () => {
-      if (!confirm("确定清除桌面端本地偏好并恢复默认？")) return;
-      localStorage.removeItem(PREF_KEY);
-      g().cols = "4";
-      g().PAGE_SIZE = 100;
-      if (colsEl) colsEl.value = "4";
-      R.settings();
+    pageSel?.addEventListener("change", () => {
+      const b = globalThis.__bili;
+      if (!b) return;
+      b.PAGE_SIZE = Number(pageSel.value) || 100;
+      const p = loadPrefs();
+      p.pageSize = b.PAGE_SIZE;
+      savePrefs(p);
+      b.render?.();
     });
-
-    const siVal = document.getElementById("si-val");
-    const applyInterval = (n) => {
-      n = Math.max(1, Math.min(1440, Number(n) || 30));
-      if (siVal) siVal.value = String(n);
-      savePrefs({ syncInterval: n });
-    };
-    document.getElementById("si-minus")?.addEventListener("click", () => applyInterval(Number(siVal?.value) - 5));
-    document.getElementById("si-plus")?.addEventListener("click", () => applyInterval(Number(siVal?.value) + 5));
-    siVal?.addEventListener("change", () => applyInterval(siVal.value));
-
-    document.getElementById("sd-to-bili")?.addEventListener("change", (e) => {
-      savePrefs({ isSyncDelete: e.target.checked });
-    });
-    document.getElementById("sd-from-bili")?.addEventListener("change", (e) => {
-      savePrefs({ isSyncDeleteFromBilibili: e.target.checked });
-    });
-
-    contentEl.querySelectorAll('input[name="loadMode"]').forEach((el) => {
-      el.addEventListener("change", () => savePrefs({ historyLoadMode: el.value }));
-    });
-    contentEl.querySelectorAll('input[name="dateMode"]').forEach((el) => {
-      el.addEventListener("change", () => savePrefs({ dateSelectionMode: el.value }));
-    });
-
-    setCols?.addEventListener("change", () => {
-      g().cols = setCols.value;
-      if (colsEl) colsEl.value = setCols.value;
-      savePrefs({ cols: setCols.value });
-      render();
-    });
-    setPs?.addEventListener("change", () => {
-      g().PAGE_SIZE = Number(setPs.value) || 100;
-      savePrefs({ pageSize: g().PAGE_SIZE });
-      render();
-    });
-
-    document.getElementById("menu-hide")?.addEventListener("change", () => {
-      const list = [...contentEl.querySelectorAll("#menu-hide [data-hide]:checked")].map((x) => x.getAttribute("data-hide"));
-      savePrefs({ hiddenMenus: list });
+    document.getElementById("set-json")?.addEventListener("click", () => {
+      document.querySelector('[data-page="backup-json"]')?.click();
     });
   };
 
-  R.cloud = function () {
-    const { contentEl, pageCount, paginationEl } = g();
+  R.about = function () {
+    const { contentEl, pageCount, paginationEl, pack, sourceName, escapeHtml } = g();
     paginationEl.hidden = true;
     pageCount.textContent = "";
     contentEl.innerHTML = `
-  ${pageShellNote("云同步仅扩展支持。以下为界面还原，按钮不可用。")}
   <div class="panel-stack">
     <div class="panel-card">
-      <div class="panel-head"><h3>云同步状态</h3><span class="chip">未连接</span></div>
-      <p class="panel-desc">将本地历史与收藏同步到云端，便于多端使用。</p>
-      <div class="kv"><span>当前账号</span><span>未登录</span></div>
-      <div class="kv"><span>上次同步</span><span>—</span></div>
-      <div class="panel-actions">
-        <button type="button" class="btn primary" disabled>立即同步</button>
-        <button type="button" class="btn" disabled>登录账号</button>
-      </div>
-    </div>
-    <div class="panel-card">
-      <h3>同步内容</h3>
-      <label class="check-line"><input type="checkbox" checked disabled> 历史记录</label>
-      <label class="check-line"><input type="checkbox" checked disabled> 收藏夹</label>
-      <label class="check-line"><input type="checkbox" checked disabled> 喜欢的音乐</label>
-      <label class="check-line"><input type="checkbox" disabled> 合集订阅</label>
-    </div>
-  </div>`;
-  };
-
-  R["video-backup"] = function () {
-    const { contentEl, pageCount, paginationEl } = g();
-    paginationEl.hidden = true;
-    pageCount.textContent = "";
-    contentEl.innerHTML = `
-  ${pageShellNote("视频备份为扩展能力。桌面版仅展示界面结构。")}
-  <div class="panel-stack">
-    <div class="panel-card">
-      <div class="panel-head"><h3>视频备份</h3><span class="chip">不可用</span></div>
-      <p class="panel-desc">将收藏或历史上的视频缓存到本地目录，便于离线查看。</p>
-      <div class="kv"><span>备份目录</span><span>未选择</span></div>
-      <div class="kv"><span>已备份</span><span>0</span></div>
-      <div class="panel-actions">
-        <button type="button" class="btn primary" disabled>选择目录</button>
-        <button type="button" class="btn" disabled>开始备份</button>
-      </div>
+      <h3>关于无限历史记录 · 桌面版</h3>
+      <p class="panel-desc">界面与交互对齐浏览器扩展；数据来自 B 站同步与本地备份。</p>
+      <div class="kv"><span>当前数据源</span><span>${escapeHtml(sourceName || "未加载")}</span></div>
+      <div class="kv"><span>历史</span><span>${(pack?.history || []).length}</span></div>
+      <div class="kv"><span>收藏夹</span><span>${(pack?.favFolders || []).length}</span></div>
+      <div class="kv"><span>音乐</span><span>${(pack?.likedMusic || []).length}</span></div>
     </div>
   </div>`;
   };
@@ -239,17 +162,40 @@ function bootSecondary() {
     paginationEl.hidden = true;
     pageCount.textContent = "";
     contentEl.innerHTML = `
-  ${pageShellNote("AI 探索依赖扩展内 API Key。桌面版不发起模型请求。")}
+  ${pageShellNote("AI 探索为扩展能力，桌面版仅保留界面占位。")}
   <div class="ai-shell">
-    <div class="ai-toolbar">
-      <button type="button" class="btn" disabled>模型配置</button>
-      <select disabled><option>最近 1000 条</option></select>
-    </div>
     <div class="ai-search">
-      <input type="search" placeholder="用自然语言搜索你的观看历史…" disabled />
-      <button type="button" class="btn primary" disabled>开始探索</button>
+      <input type="search" placeholder="描述你想找的视频…" disabled />
+      <button type="button" class="btn primary" disabled>探索</button>
     </div>
-    <div class="panel-card muted"><div class="empty-inline">请在扩展中使用 AI 探索</div></div>
+    <div class="panel-card muted"><div class="empty-inline">暂无结果</div></div>
+  </div>`;
+  };
+
+  R.cloud = function () {
+    const { contentEl, pageCount, paginationEl } = g();
+    paginationEl.hidden = true;
+    pageCount.textContent = "";
+    contentEl.innerHTML = `
+  ${pageShellNote("云同步为扩展能力。桌面请使用「同步记录」与「本地目录备份」。")}
+  <div class="panel-card">
+    <h3>云同步</h3>
+    <p class="panel-desc">扩展可将数据同步到自建服务。桌面版后续可再对接。</p>
+    <div class="panel-actions">
+      <button type="button" class="btn primary" disabled>配置云同步</button>
+    </div>
+  </div>`;
+  };
+
+  R["video-backup"] = function () {
+    const { contentEl, pageCount, paginationEl } = g();
+    paginationEl.hidden = true;
+    pageCount.textContent = "";
+    contentEl.innerHTML = `
+  ${pageShellNote("视频备份（下载缓存）为扩展能力。")}
+  <div class="panel-card">
+    <h3>视频备份</h3>
+    <p class="panel-desc">扩展可备份视频到本地。桌面版暂不支持。</p>
   </div>`;
   };
 
@@ -258,15 +204,11 @@ function bootSecondary() {
     paginationEl.hidden = true;
     pageCount.textContent = "";
     contentEl.innerHTML = `
-  ${pageShellNote("反馈请到扩展仓库提交。")}
   <div class="panel-card">
-    <h3>反馈与建议</h3>
-    <p class="panel-desc">桌面只读版不内置反馈表单。</p>
-    <label class="field-block"><span>类型</span><select disabled><option>功能建议</option><option>问题反馈</option></select></label>
-    <label class="field-block"><span>内容</span><textarea rows="5" disabled placeholder="描述你的问题或建议…"></textarea></label>
+    <h3>反馈</h3>
+    <p class="panel-desc">请到 GitHub 提交 Issue。</p>
     <div class="panel-actions">
-      <button type="button" class="btn primary" disabled>提交</button>
-      <a class="btn" href="https://github.com/lucienlmy/bilibili-history-wxt/issues" target="_blank" rel="noopener">打开 GitHub Issues</a>
+      <a class="btn primary" href="https://github.com/lucienlmy/bilibili-history-wxt/issues" target="_blank" rel="noopener">打开 Issues</a>
     </div>
   </div>`;
   };
@@ -276,7 +218,7 @@ function bootSecondary() {
     paginationEl.hidden = true;
     pageCount.textContent = "";
     contentEl.innerHTML = `
-  <div class="panel-card center">
+  <div class="panel-card">
     <h3>赞赏支持</h3>
     <p class="panel-desc">感谢支持。桌面版不展示收款码，请在扩展或项目页查看。</p>
     <div class="reward-placeholder">♥</div>
@@ -287,20 +229,92 @@ function bootSecondary() {
   };
 
   R["backup-local"] = function () {
-    const { contentEl, pageCount, paginationEl, openBackup } = g();
+    const { contentEl, pageCount, paginationEl, pack } = g();
     paginationEl.hidden = true;
     pageCount.textContent = "";
-    contentEl.innerHTML = `
-  ${pageShellNote("本地目录备份为扩展能力。桌面请直接打开 JSON。")}
+
+    const escapeHtmlSafe = (s) =>
+      String(s ?? "")
+        .replaceAll("&", "&")
+        .replaceAll("<", "<")
+        .replaceAll(">", ">")
+        .replaceAll('"', """);
+
+    const renderPanel = async () => {
+      let status = { path: null, last_dir_backup_at: null };
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        status = await invoke("get_backup_dir_status");
+      } catch (e) {
+        console.warn(e);
+      }
+      const path = status?.path || "";
+      const last = status?.last_dir_backup_at
+        ? new Date(status.last_dir_backup_at).toLocaleString()
+        : "尚未备份";
+      contentEl.innerHTML = `
   <div class="panel-card">
-    <div class="panel-head"><h3>本地目录</h3><span class="chip">扩展功能</span></div>
-    <p class="panel-desc">授权文件夹后扩展可自动写入备份。</p>
+    <div class="panel-head"><h3>本地目录备份</h3><span class="chip ok">可用</span></div>
+    <p class="panel-desc">选择电脑上的一个目录，把当前历史等数据保存为 JSON 文件，不经过任何第三方。与扩展「本地目录备份」一致。</p>
+    <div class="kv"><span>备份目录</span><span>${path ? escapeHtmlSafe(path) : "未选择"}</span></div>
+    <div class="kv"><span>上次备份</span><span>${escapeHtmlSafe(last)}</span></div>
+    <div class="kv"><span>当前数据</span><span>历史 ${(pack?.history || []).length} · 收藏 ${(pack?.favFolders || []).length} · 音乐 ${(pack?.likedMusic || []).length}</span></div>
     <div class="panel-actions">
-      <button type="button" class="btn primary" id="bl-open">打开 JSON 备份</button>
-      <button type="button" class="btn" disabled>选择目录</button>
+      <button type="button" class="btn primary" id="bl-pick">选择目录</button>
+      <button type="button" class="btn" id="bl-backup" ${path ? "" : "disabled"}>立即备份</button>
+      <button type="button" class="btn" id="bl-clear" ${path ? "" : "disabled"}>移除目录配置</button>
     </div>
+    <p class="panel-desc" id="bl-msg" style="margin-top:.75rem"></p>
   </div>`;
-    document.getElementById("bl-open")?.addEventListener("click", () => void openBackup());
+
+      const msg = (t, ok) => {
+        const el = document.getElementById("bl-msg");
+        if (el) {
+          el.textContent = t || "";
+          el.style.color = ok === false ? "#b91c1c" : "var(--ink-muted)";
+        }
+      };
+
+      document.getElementById("bl-pick")?.addEventListener("click", async () => {
+        try {
+          const { invoke } = await import("@tauri-apps/api/core");
+          const p = await invoke("pick_backup_directory");
+          if (p) {
+            msg("已选择： " + p, true);
+            await renderPanel();
+          }
+        } catch (e) {
+          msg("选择失败：" + (e?.message || e), false);
+        }
+      });
+      document.getElementById("bl-backup")?.addEventListener("click", async () => {
+        const b = globalThis.__bili;
+        if (!b?.pack) {
+          msg("没有可备份的数据，请先同步历史记录", false);
+          return;
+        }
+        try {
+          const { invoke } = await import("@tauri-apps/api/core");
+          const out = await invoke("export_pack_to_backup_dir", { pack: b.pack });
+          msg("已写入：" + out, true);
+          await renderPanel();
+        } catch (e) {
+          msg("备份失败：" + (e?.message || e), false);
+        }
+      });
+      document.getElementById("bl-clear")?.addEventListener("click", async () => {
+        try {
+          const { invoke } = await import("@tauri-apps/api/core");
+          await invoke("clear_backup_directory");
+          msg("已移除目录配置（已有文件不会删除）", true);
+          await renderPanel();
+        } catch (e) {
+          msg(String(e?.message || e), false);
+        }
+      });
+    };
+
+    void renderPanel();
   };
 
   R["backup-webdav"] = function () {
@@ -327,14 +341,40 @@ function bootSecondary() {
     contentEl.innerHTML = `
   <div class="panel-card">
     <div class="panel-head"><h3>JSON 文件</h3><span class="chip ok">可用</span></div>
-    <p class="panel-desc">打开扩展导出的备份 JSON。</p>
-    <div class="kv"><span>当前文件</span><span>${escapeHtml(sourceName || "未加载")}</span></div>
+    <p class="panel-desc">与扩展相同：可导出当前数据为 JSON，或导入已有备份文件合并到本地。</p>
+    <div class="kv"><span>当前数据源</span><span>${escapeHtml(sourceName || "未加载")}</span></div>
     <div class="kv"><span>导出时间</span><span>${escapeHtml(pack?.exportedAt || "—")}</span></div>
+    <div class="kv"><span>历史 / 收藏 / 音乐</span><span>${(pack?.history || []).length} / ${(pack?.favFolders || []).length} / ${(pack?.likedMusic || []).length}</span></div>
     <div class="panel-actions">
-      <button type="button" class="btn primary" id="bj-open">打开备份</button>
+      <button type="button" class="btn primary" id="bj-export">导出数据</button>
+      <button type="button" class="btn" id="bj-import">导入数据</button>
     </div>
+    <p class="panel-desc" id="bj-msg" style="margin-top:.75rem"></p>
   </div>`;
-    document.getElementById("bj-open")?.addEventListener("click", () => void openBackup());
+    const msg = (t, ok) => {
+      const el = document.getElementById("bj-msg");
+      if (el) {
+        el.textContent = t || "";
+        el.style.color = ok === false ? "#b91c1c" : "var(--ink-muted)";
+      }
+    };
+    document.getElementById("bj-export")?.addEventListener("click", async () => {
+      const b = globalThis.__bili;
+      if (!b?.pack) {
+        msg("没有可导出的数据，请先同步或导入", false);
+        return;
+      }
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const out = await invoke("export_pack_as_file", { pack: b.pack });
+        if (out) msg("已导出：" + out, true);
+      } catch (e) {
+        msg("导出失败：" + (e?.message || e), false);
+      }
+    });
+    document.getElementById("bj-import")?.addEventListener("click", () => {
+      void openBackup();
+    });
   };
 
   R["music-search"] = function () {
