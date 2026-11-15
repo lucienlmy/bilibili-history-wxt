@@ -496,6 +496,78 @@ fn delete_history_item(
     Ok(())
 }
 
+#[tauri::command]
+fn fetch_favorite_folders(app: AppHandle) -> Result<Vec<serde_json::Value>, String> {
+    let sess = read_session(&app)?;
+    let sessdata = sess
+        .sessdata
+        .filter(|x| !x.is_empty())
+        .ok_or_else(|| "未登录，请先配置 SESSDATA".to_string())?;
+    let (_, mid) = fetch_nav(&sessdata)?;
+    let mid = mid.ok_or_else(|| "无法获取用户 mid".to_string())?;
+    let url = format!(
+        "https://api.bilibili.com/x/v3/fav/folder/created/list-all?up_mid={}",
+        mid
+    );
+    let body = bili_get(&sessdata, &url)?;
+    let data = body.get("data").cloned().unwrap_or(serde_json::Value::Null);
+    let list = data.get("list");
+    if list.is_none() || list == Some(&serde_json::Value::Null) {
+        return Ok(vec![]);
+    }
+    let arr = list
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| "收藏夹数据格式异常".to_string())?;
+    let mut out = Vec::new();
+    for (index, folder) in arr.iter().enumerate() {
+        let mut f = folder.clone();
+        if let Some(obj) = f.as_object_mut() {
+            if let Some(id) = obj.get("id").and_then(|v| v.as_i64()) {
+                obj.insert("id".into(), serde_json::json!(id));
+            }
+            obj.insert("index".into(), serde_json::json!(index));
+        }
+        out.push(f);
+    }
+    Ok(out)
+}
+
+#[derive(Serialize)]
+struct FavPageResult {
+    medias: Vec<serde_json::Value>,
+    has_more: bool,
+}
+
+#[tauri::command]
+fn fetch_favorite_folder_page(
+    app: AppHandle,
+    media_id: i64,
+    pn: Option<i64>,
+) -> Result<FavPageResult, String> {
+    let sess = read_session(&app)?;
+    let sessdata = sess
+        .sessdata
+        .filter(|x| !x.is_empty())
+        .ok_or_else(|| "未登录，请先配置 SESSDATA".to_string())?;
+    let pn = pn.unwrap_or(1).max(1);
+    let url = format!(
+        "https://api.bilibili.com/x/v3/fav/resource/list?media_id={}&pn={}&ps=20",
+        media_id, pn
+    );
+    let body = bili_get(&sessdata, &url)?;
+    let data = body.get("data").cloned().unwrap_or(serde_json::Value::Null);
+    let medias = data
+        .get("medias")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let has_more = data
+        .get("has_more")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    Ok(FavPageResult { medias, has_more })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -518,7 +590,9 @@ pub fn run() {
             clear_backup_directory,
             export_pack_to_backup_dir,
             export_pack_as_file,
-            delete_history_item
+            delete_history_item,
+            fetch_favorite_folders,
+            fetch_favorite_folder_page
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
