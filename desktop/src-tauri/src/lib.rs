@@ -264,6 +264,40 @@ fn fetch_history_page(
     })
 }
 
+fn cache_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join("history_cache.json"))
+}
+
+#[tauri::command]
+fn save_local_pack(app: AppHandle, pack: serde_json::Value) -> Result<String, String> {
+    let path = cache_path(&app)?;
+    let body = serde_json::to_string(&pack).map_err(|e| e.to_string())?;
+    fs::write(&path, body).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn load_local_pack(app: AppHandle) -> Result<Option<serde_json::Value>, String> {
+    let path = cache_path(&app)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let val: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    Ok(Some(val))
+}
+
+#[tauri::command]
+fn clear_local_pack(app: AppHandle) -> Result<(), String> {
+    let path = cache_path(&app)?;
+    if path.exists() {
+        fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -277,7 +311,10 @@ pub fn run() {
             clear_sessdata,
             get_sync_meta,
             save_sync_meta,
-            fetch_history_page
+            fetch_history_page,
+            save_local_pack,
+            load_local_pack,
+            clear_local_pack
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
