@@ -93,10 +93,11 @@ async function syncAllFavorites() {
     id: Number(f.id),
     index,
     title: f.title || f.name || "未命名收藏夹",
-    media_count: f.media_count ?? 0,
+    name: f.title || f.name || "未命名收藏夹",
+    media_count: Number(f.media_count || 0),
   }));
   b.pack.favResources = allResources;
-  b.sourceName = (b.sourceName || "本地") + " · 收藏已同步";
+  b.sourceName = b.sourceName || "B 站同步 · 收藏夹";
   if (b.fileMeta) {
     b.fileMeta.textContent =
       (b.sourceName || "") +
@@ -149,11 +150,23 @@ function wireFavSyncButton() {
   });
 }
 
+function isFavoritesPage() {
+  if (globalThis.__bili?.page === "favorites") return true;
+  const title = document.getElementById("page-title")?.textContent || "";
+  if (title.includes("收藏")) return true;
+  return Boolean(
+    document.querySelector('.nav-item.active[data-page="favorites"]') ||
+      document.querySelector('.nav-sub.active[data-page="favorites"]') ||
+      document.querySelector(".fav-layout")
+  );
+}
+
 function enhanceFavEmpty() {
+  if (!isFavoritesPage()) return;
   const empty = document.querySelector("#content .empty");
   if (!empty || empty.dataset.favAligned === "1") return;
   const t = empty.textContent || "";
-  if (!t.includes("收藏") && !t.includes("备份中没有")) return;
+  if (!t.includes("收藏") && !t.includes("备份中没有") && !t.includes("此收藏夹")) return;
   empty.dataset.favAligned = "1";
   empty.innerHTML = `
     <p>还没有收藏夹数据</p>
@@ -180,19 +193,28 @@ function enhanceFavEmpty() {
   });
 }
 
+function injectFavSyncUi() {
+  if (!isFavoritesPage()) return;
+  const aside = document.querySelector(".fav-aside .fav-folders-head");
+  if (aside && !aside.querySelector(".fav-sync-all") && !document.getElementById("fav-sync-all")) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "fav-sync-all";
+    btn.id = "fav-sync-all";
+    btn.textContent = "同步全部";
+    aside.appendChild(btn);
+  }
+  wireFavSyncButton();
+  enhanceFavEmpty();
+}
+
 (async () => {
   const b = await waitBili();
   const orig = b.render.bind(b);
   b.render = function () {
     orig();
-    if (b.page === "favorites") {
-      wireFavSyncButton();
-      enhanceFavEmpty();
-    }
+    injectFavSyncUi();
   };
-  if (b.page === "favorites") {
-    wireFavSyncButton();
-    enhanceFavEmpty();
-  }
+  injectFavSyncUi();
   b.syncAllFavorites = syncAllFavorites;
 })();
