@@ -19,7 +19,7 @@
   font-weight: 500;
 }
 .nav-sub:hover { background: var(--wash); color: var(--ink-soft); }
-.nav-sub.active { background: var(--brand); color: #fff; box-shadow: 0 1px 6px color-mix(in srgb, var(--brand) 30%, transparent); }
+.nav-sub.active { background: var(--brand-soft); color: var(--brand-strong); }
 .sidebar.collapsed .nav-children,
 .sidebar.collapsed .nav-parent .chev { display: none; }
 .sidebar.collapsed .nav-expand.open .nav-children { display: none; }
@@ -129,3 +129,44 @@
   0% { transform: translateX(-100%); }
   100% { transform: translateX(280%); }
 }
+
+/* history toolbar layout closer to extension */
+.history-search-bar {
+  display: flex; align-items: center; flex: 1; min-width: 260px; max-width: 520px;
+  height: 2.5rem; border: 1px solid var(--line); border-radius: 0.65rem;
+  background: var(--paper); overflow: hidden;
+}
+.history-search-bar:focus-within {
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent);
+}
+.history-search-bar .kind-select {
+  height: 100%; border: 0; border-right: 1px solid var(--line);
+  background: transparent; color: var(--ink-soft); padding: 0 0.55rem 0 0.75rem;
+  font-size: 0.8rem; font-weight: 500; cursor: pointer; appearance: none;
+  min-width: 4.5rem;
+}
+.history-search-bar .search-ico { margin-left: 0.55rem; color: var(--ink-faint); flex-shrink: 0; }
+.history-search-bar #search {
+  flex: 1; min-width: 0; height: 100%; border: 0; box-shadow: none;
+  padding: 0 0.75rem 0 0.4rem; background: transparent; font-size: 0.875rem;
+}
+.history-search-bar #search:focus { box-shadow: none; outline: none; }
+.filters-row2 { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; width: 100%; }
+.segment.soft {
+  background: var(--wash); border-radius: 0.65rem; padding: 0.2rem;
+}
+.segment.soft button {
+  height: 2.1rem; border-radius: 0.45rem; padding: 0 0.85rem;
+}
+.segment.soft button.active {
+  background: var(--paper); color: var(--ink); font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+.chip-btn {
+  height: 2.5rem; border-radius: 0.65rem; border: 1px solid var(--line);
+  background: var(--paper); color: var(--ink-soft); padding: 0 0.85rem;
+  font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;
+}
+.chip-btn:hover { border-color: color-mix(in srgb, var(--brand) 25%, var(--line)); }
+.toolbar-actions .btn.primary span { letter-spacing: 0.01em; }
