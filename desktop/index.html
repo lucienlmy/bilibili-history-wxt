@@ -20,7 +20,7 @@
             <span class="brand-text">无限历史记录</span>
           </button>
           <button type="button" class="icon-btn" id="btn-collapse" title="收起侧边栏" aria-label="收起侧边栏">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7"/><path d="M18 19l-7-7 7-7"/></svg>
           </button>
         </div>
         <nav class="sidebar-nav" id="nav"></nav>
@@ -44,12 +44,12 @@
                     <h1 id="page-title">历史记录</h1>
                     <span class="count" id="page-count">0 个内容</span>
                   </div>
-                  <p class="sub" id="page-desc">搜索、筛选并浏览本地备份中的观看记录</p>
+                  <p class="sub" id="page-desc">搜索、筛选并管理你的本地观看记录</p>
                 </div>
                 <div class="toolbar-actions">
                   <button type="button" class="btn primary" id="btn-sync-history" title="使用已保存的登录信息从 B 站拉取历史">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/></svg>
-                    <span>同步历史</span>
+                    <span>同步记录</span>
                   </button>
                   <button type="button" class="btn" id="btn-login" title="配置 B 站登录凭证">
                     <span>登录</span>
@@ -70,53 +70,53 @@
                 </div>
               </div>
               <div class="filters" id="filters">
-                <div class="search-wrap">
+                <div class="history-search-bar">
+                  <select id="search-kind" class="kind-select" title="搜索范围">
+                    <option value="all">综合</option>
+                    <option value="title">标题</option>
+                    <option value="up">UP主</option>
+                    <option value="bvid">BV号</option>
+                  </select>
                   <svg class="search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-                  <input id="search" type="search" placeholder="搜索标题 / UP 主 / BV 号…" />
+                  <input id="search" type="search" placeholder="搜索标题、UP 主或视频编号" />
                 </div>
-                <div class="select-wrap">
-                  <select id="search-kind">
-                    <option value="all">全部字段</option>
-                    <option value="title">标题</option>
-                    <option value="up">UP 主</option>
-                    <option value="bvid">BV 号</option>
-                  </select>
+                <div class="filters-row2">
+                  <div class="segment soft" id="display-mode" title="展示模式">
+                    <button type="button" data-mode="content" class="active">按视频</button>
+                    <button type="button" data-mode="visit">按观看</button>
+                  </div>
+                  <div class="select-wrap">
+                    <select id="type-filter">
+                      <option value="all">全部分类</option>
+                      <option value="archive">视频</option>
+                      <option value="live">直播</option>
+                      <option value="pgc">番剧</option>
+                      <option value="article">专栏</option>
+                      <option value="cheese">课堂</option>
+                    </select>
+                  </div>
+                  <div class="date-range" title="选择日期">
+                    <input id="date-start" type="date" title="开始日期" />
+                    <span class="date-sep">至</span>
+                    <input id="date-end" type="date" title="结束日期" />
+                  </div>
+                  <div class="select-wrap">
+                    <select id="sort">
+                      <option value="time-desc">时间倒序</option>
+                      <option value="time-asc">时间正序</option>
+                      <option value="title">标题</option>
+                    </select>
+                  </div>
+                  <div class="select-wrap">
+                    <select id="cols">
+                      <option value="auto">自动列数</option>
+                      <option value="3">3 列</option>
+                      <option value="4" selected>4 列</option>
+                      <option value="5">5 列</option>
+                    </select>
+                  </div>
+                  <button type="button" class="clear-filters" id="btn-clear-filters" hidden>清除筛选</button>
                 </div>
-                <div class="segment" id="display-mode" title="展示模式">
-                  <button type="button" data-mode="content" class="active">按内容</button>
-                  <button type="button" data-mode="visit">按观看</button>
-                </div>
-                <div class="select-wrap">
-                  <select id="type-filter">
-                    <option value="all">全部分类</option>
-                    <option value="archive">视频</option>
-                    <option value="live">直播</option>
-                    <option value="pgc">番剧</option>
-                    <option value="article">专栏</option>
-                    <option value="cheese">课堂</option>
-                  </select>
-                </div>
-                <div class="date-range">
-                  <input id="date-start" type="date" title="开始日期" />
-                  <span class="date-sep">至</span>
-                  <input id="date-end" type="date" title="结束日期" />
-                </div>
-                <div class="select-wrap">
-                  <select id="sort">
-                    <option value="time-desc">时间倒序</option>
-                    <option value="time-asc">时间正序</option>
-                    <option value="title">标题</option>
-                  </select>
-                </div>
-                <div class="select-wrap">
-                  <select id="cols">
-                    <option value="auto">自动列数</option>
-                    <option value="3">3 列</option>
-                    <option value="4" selected>4 列</option>
-                    <option value="5">5 列</option>
-                  </select>
-                </div>
-                <button type="button" class="clear-filters" id="btn-clear-filters" hidden>清除筛选</button>
               </div>
             </div>
           </header>
@@ -148,7 +148,7 @@
               <option value="200">200</option>
             </select>
           </label>
-          <p class="hint">桌面只读版仅保留视图相关设置；同步与账号相关选项不可用。</p>
+          <p class="hint">桌面版设置保存在本机；列数也可在下方筛选栏调整。</p>
         </div>
         <div class="modal-foot">
           <button type="button" class="btn" id="vs-cancel">取消</button>
