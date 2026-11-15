@@ -568,6 +568,119 @@ fn fetch_favorite_folder_page(
     Ok(FavPageResult { medias, has_more })
 }
 
+fn pick_audio_url(audio: &serde_json::Value) -> Option<String> {
+    let mut candidates: Vec<String> = Vec::new();
+    for key in ["baseUrl", "base_url"] {
+        if let Some(u) = audio.get(key).and_then(|v| v.as_str()) {
+            if !u.is_empty() {
+                candidates.push(u.to_string());
+            }
+        }
+    }
+    for key in ["backupUrl", "backup_url"] {
+        if let Some(arr) = audio.get(key).and_then(|v| v.as_array()) {
+            for u in arr {
+                if let Some(s) = u.as_str() {
+                    if !s.is_empty() {
+                        candidates.push(s.to_string());
+                    }
+                }
+            }
+        }
+    }
+    let rank = |url: &str| -> i32 {
+        let host = url
+            .split("://")
+            .nth(1)
+            .unwrap_or(url)
+            .split('/')
+            .next()
+            .unwrap_or("")
+            .split('@')
+            .next()
+            .unwrap_or("")
+            .to_lowercase();
+        if host.ends_with(".bilivideo.com") {
+            0
+        } else if host.ends_with(".akamaized.net") {
+            1
+        } else {
+            2
+        }
+    };
+    candidates.sort_by_key(|u| rank(u));
+    candidates.into_iter().next()
+}
+
+#[tauri::command]
+fn fetch_audio_url(app: AppHandle, bvid: String) -> Result<String, String> {
+    let bvid = bvid.trim().to_string();
+    if bvid.is_empty() {
+        return Err("缺少 bvid".into());
+    }
+    let sess = read_session(&app)?;
+    let sessdata = sess.sessdata.filter(|x| !x.is_empty());
+    let cookie = sessdata
+        .as_ref()
+        .map(|s| format!("SESSDATA={}", s))
+        .unwrap_or_default();
+    let c = client()?;
+    let mut req = c
+        .get(format!(
+            "https://api.bilibili.com/x/web-interface/view?bvid={}",
+            bvid
+        ))
+        .header("Referer", "https://www.bilibili.com");
+    if !cookie.is_empty() {
+        req = req.header("Cookie", &cookie);
+    }
+    let view: serde_json::Value = req
+        .send()
+        .map_err(|e| format!("获取视频信息失败：{}", e))?
+        .json()
+        .map_err(|e| format!("解析视频信息失败：{}", e))?;
+    let code = view.get("code").and_then(|c| c.as_i64()).unwrap_or(-1);
+    if code != 0 {
+        return Err(view
+            .get("message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("获取视频信息失败")
+            .to_string());
+    }
+    let cid = view
+        .pointer("/data/cid")
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| "无法获取 cid".to_string())?;
+    let mut req = c
+        .get(format!(
+            "https://api.bilibili.com/x/player/playurl?fnval=16&bvid={}&cid={}",
+            bvid, cid
+        ))
+        .header("Referer", "https://www.bilibili.com");
+    if !cookie.is_empty() {
+        req = req.header("Cookie", &cookie);
+    }
+    let play: serde_json::Value = req
+        .send()
+        .map_err(|e| format!("获取播放地址失败：{}", e))?
+        .json()
+        .map_err(|e| format!("解析播放地址失败：{}", e))?;
+    let code = play.get("code").and_then(|c| c.as_i64()).unwrap_or(-1);
+    if code != 0 {
+        return Err(play
+            .get("message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("获取播放地址失败")
+            .to_string());
+    }
+    let audio = play
+        .pointer("/data/dash/audio")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())
+        .ok_or_else(|| "该视频没有可播放的音频流".to_string())?;
+    pick_audio_url(audio).ok_or_else(|| "未找到可用音频地址".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -592,7 +705,8 @@ pub fn run() {
             export_pack_as_file,
             delete_history_item,
             fetch_favorite_folders,
-            fetch_favorite_folder_page
+            fetch_favorite_folder_page,
+            fetch_audio_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

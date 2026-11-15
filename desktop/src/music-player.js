@@ -20,7 +20,15 @@ const state = {
   audio: null,
   loading: false,
   error: "",
+  playToken: 0,
 };
+
+function fmtTime(sec) {
+  if (!Number.isFinite(sec) || sec < 0) return "0:00";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return m + ":" + String(s).padStart(2, "0");
+}
 
 function ensurePlayerUi() {
   let bar = document.getElementById("music-player-bar");
@@ -35,6 +43,11 @@ function ensurePlayerUi() {
       <div class="mp-title" id="mp-title">未播放</div>
       <div class="mp-sub" id="mp-sub">—</div>
     </div>
+    <div class="mp-progress-wrap">
+      <span class="mp-time" id="mp-cur">0:00</span>
+      <input type="range" class="mp-progress" id="mp-progress" min="0" max="1000" value="0" />
+      <span class="mp-time" id="mp-dur">0:00</span>
+    </div>
     <div class="mp-controls">
       <button type="button" class="mp-btn" id="mp-prev" title="上一首">⏮</button>
       <button type="button" class="mp-btn primary" id="mp-toggle" title="播放/暂停">▶</button>
@@ -43,9 +56,18 @@ function ensurePlayerUi() {
     <div class="mp-status" id="mp-status"></div>
   `;
   document.body.appendChild(bar);
+
   document.getElementById("mp-prev")?.addEventListener("click", () => void playRelative(-1));
   document.getElementById("mp-next")?.addEventListener("click", () => void playRelative(1));
   document.getElementById("mp-toggle")?.addEventListener("click", () => togglePlay());
+
+  const progress = document.getElementById("mp-progress");
+  progress?.addEventListener("input", () => {
+    if (!state.audio || !Number.isFinite(state.audio.duration)) return;
+    const ratio = Number(progress.value) / 1000;
+    state.audio.currentTime = ratio * state.audio.duration;
+  });
+
   return bar;
 }
 
@@ -65,9 +87,24 @@ function updateMeta(track) {
     cover.referrerPolicy = "no-referrer";
   }
   if (title) title.textContent = track?.title || "未命名";
-  if (sub) sub.textContent = track?.author || track?.upper?.name || track?.bvid || "—";
+  if (sub) sub.textContent = track?.author || track?.bvid || "—";
   const btn = document.getElementById("mp-toggle");
   if (btn) btn.textContent = state.audio && !state.audio.paused ? "⏸" : "▶";
+}
+
+function updateProgress() {
+  const audio = state.audio;
+  const progress = document.getElementById("mp-progress");
+  const cur = document.getElementById("mp-cur");
+  const dur = document.getElementById("mp-dur");
+  if (!audio || !progress) return;
+  const d = audio.duration;
+  const t = audio.currentTime;
+  if (Number.isFinite(d) && d > 0) {
+    progress.value = String(Math.round((t / d) * 1000));
+    if (dur) dur.textContent = fmtTime(d);
+  }
+  if (cur) cur.textContent = fmtTime(t);
 }
 
 function trackFromItem(item) {
@@ -82,105 +119,140 @@ function trackFromItem(item) {
 async function playTrack(track, playlist, index) {
   if (!track?.bvid) throw new Error("缺少 bvid");
   ensurePlayerUi();
-  state.playlist = playlist || [track];
+  state.playlist = Array.isArray(playlist) && playlist.length ? playlist : [track];
   state.index = index >= 0 ? index : 0;
   state.loading = true;
   state.error = "";
+  const token = ++state.playToken;
   setStatus("加载中…");
   updateMeta(track);
+
+  document.querySelectorAll("article.music-row.playing").forEach((el) => el.classList.remove("playing"));
+  try {
+    const row = document.querySelector('article.music-row[data-bvid="' + CSS.escape(track.bvid) + '"]');
+    if (row) row.classList.add("playing");
+  } catch {}
+
   try {
     const url = await invoke("fetch_audio_url", { bvid: track.bvid });
+    if (token !== state.playToken) return;
+
     if (state.audio) {
       try {
         state.audio.pause();
+        state.audio.src = "";
       } catch {}
-      state.audio.src = "";
       state.audio = null;
     }
+
     const audio = new Audio();
-    audio.preload = "auto";
-    audio.src = url;
-    audio.addEventListener("ended", () => void playRelative(1));
-    audio.addEventListener("error", () => {
-      setStatus("播放失败（可能是 CDN 限制）");
-    });
-    audio.addEventListener("play", () => updateMeta(track));
-    audio.addEventListener("pause", () => updateMeta(track));
+    audio.crossOrigin = "anonymous";
     state.audio = audio;
+
+    audio.addEventListener("timeupdate", updateProgress);
+    audio.addEventListener("loadedmetadata", updateProgress);
+    audio.addEventListener("ended", () => {
+      void playRelative(1);
+    });
+    audio.addEventListener("error", () => {
+      state.loading = false;
+      setStatus("播放失败");
+      const btn = document.getElementById("mp-toggle");
+      if (btn) btn.textContent = "▶";
+    });
+    audio.addEventListener("play", () => {
+      const btn = document.getElementById("mp-toggle");
+      if (btn) btn.textContent = "⏸";
+      setStatus("");
+    });
+    audio.addEventListener("pause", () => {
+      const btn = document.getElementById("mp-toggle");
+      if (btn) btn.textContent = "▶";
+    });
+
+    audio.src = url;
     await audio.play();
-    setStatus("");
-  } catch (e) {
-    state.error = e?.message || String(e);
-    setStatus("失败：" + state.error);
-    throw e;
-  } finally {
     state.loading = false;
-    updateMeta(track);
+    setStatus("");
+  } catch (err) {
+    if (token !== state.playToken) return;
+    state.loading = false;
+    state.error = String(err?.message || err);
+    setStatus("失败: " + state.error.slice(0, 40));
+    const btn = document.getElementById("mp-toggle");
+    if (btn) btn.textContent = "▶";
+    throw err;
+  }
+}
+
+function togglePlay() {
+  if (!state.audio) {
+    if (state.playlist.length && state.index >= 0) {
+      void playTrack(state.playlist[state.index], state.playlist, state.index);
+    }
+    return;
+  }
+  if (state.audio.paused) {
+    void state.audio.play().catch(() => {});
+  } else {
+    state.audio.pause();
   }
 }
 
 async function playRelative(delta) {
   if (!state.playlist.length) return;
-  let i = state.index + delta;
-  if (i < 0) i = state.playlist.length - 1;
-  if (i >= state.playlist.length) i = 0;
-  await playTrack(state.playlist[i], state.playlist, i);
-}
-
-function togglePlay() {
-  const a = state.audio;
-  if (!a) {
-    if (state.playlist[state.index]) {
-      void playTrack(state.playlist[state.index], state.playlist, state.index);
-    }
-    return;
+  let next = state.index + delta;
+  if (next < 0) next = state.playlist.length - 1;
+  if (next >= state.playlist.length) next = 0;
+  const track = state.playlist[next];
+  if (!track) return;
+  try {
+    await playTrack(track, state.playlist, next);
+  } catch (err) {
+    console.warn("[music] playRelative", err);
   }
-  if (a.paused) void a.play();
-  else a.pause();
-  updateMeta(state.playlist[state.index]);
 }
 
 function enhanceMusicRows() {
-  const b = globalThis.__bili;
-  if (!b || b.page !== "music") return;
-  const items = (b.pack?.likedMusic || []).slice();
-  const playlist = items.map(trackFromItem).filter((t) => t.bvid);
+  const playlist =
+    globalThis.__bili?.musicPlaylist ||
+    Array.from(document.querySelectorAll("article.music-row")).map((row) => {
+      const bvid = row.getAttribute("data-bvid") || "";
+      const title = row.querySelector(".music-title")?.textContent?.trim() || "未命名";
+      const author = row.querySelector(".music-sub span")?.textContent?.trim() || "";
+      const cover = row.querySelector(".music-cover")?.getAttribute("src") || "";
+      return { bvid, title, author, cover };
+    });
 
   document.querySelectorAll("article.music-row").forEach((row) => {
-    if (row.dataset.musicWired === "1") return;
-    row.dataset.musicWired = "1";
-    const link = row.querySelector(".music-title a");
-    const href = link?.getAttribute("href") || "";
-    const bvid = (href.match(/\/video\/(BV[\w]+)/i) || [])[1] || "";
-    if (!bvid) return;
-    const idx = playlist.findIndex((t) => t.bvid === bvid);
-    let btn = row.querySelector(".music-play-btn");
-    if (!btn) {
-      btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "music-play-btn";
-      btn.title = "播放";
-      btn.textContent = "▶";
-      row.insertBefore(btn, row.firstChild);
-    }
-    btn.onclick = (e) => {
+    if (row.dataset.musicBound) return;
+    row.dataset.musicBound = "1";
+
+    const bvid = row.getAttribute("data-bvid") || "";
+    const idx = Number(row.getAttribute("data-idx") ?? -1);
+
+    const playBtn = row.querySelector(".music-play-btn");
+    const handler = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const i = idx >= 0 ? idx : 0;
+      const i = idx >= 0 ? idx : playlist.findIndex((t) => t.bvid === bvid);
       const track =
-        playlist[i] || trackFromItem({ bvid, title: link?.textContent });
-      void playTrack(track, playlist.length ? playlist : [track], i).catch((err) => {
+        (i >= 0 ? playlist[i] : null) ||
+        trackFromItem({ bvid, title: row.querySelector(".music-title")?.textContent });
+      void playTrack(track, playlist.length ? playlist : [track], i >= 0 ? i : 0).catch((err) => {
         alert("播放失败：" + (err?.message || err));
       });
     };
-  });
 
-  const empty = document.querySelector("#content .empty");
-  if (empty && (empty.textContent || "").includes("音乐") && !empty.dataset.musicAligned) {
-    empty.dataset.musicAligned = "1";
-    empty.innerHTML =
-      "<p>还没有喜欢的音乐</p><p>可从备份 JSON 导入，或后续支持从 B 站同步。</p>";
-  }
+    if (playBtn) {
+      playBtn.addEventListener("click", handler);
+    }
+    row.querySelector(".music-cover")?.addEventListener("click", handler);
+    row.querySelector(".music-body")?.addEventListener("click", (e) => {
+      if (e.target.closest("a")) return;
+      handler(e);
+    });
+  });
 }
 
 function injectCss() {
@@ -197,21 +269,38 @@ function injectCss() {
     box-shadow:0 -4px 20px rgba(0,0,0,.06);
   }
   .music-player-bar[hidden]{display:none !important;}
-  .mp-cover{width:40px;height:40px;border-radius:.4rem;object-fit:cover;background:var(--wash);}
-  .mp-meta{min-width:0;flex:1;}
+  .mp-cover{width:42px;height:42px;border-radius:.45rem;object-fit:cover;background:var(--wash);flex-shrink:0;}
+  .mp-meta{min-width:0;flex:0 1 12rem;}
   .mp-title{font-size:.875rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .mp-sub{font-size:.75rem;color:var(--ink-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .mp-controls{display:flex;align-items:center;gap:.35rem;}
-  .mp-btn{width:2rem;height:2rem;border:0;border-radius:999px;background:var(--wash);cursor:pointer;color:var(--ink-soft);}
+  .mp-progress-wrap{display:flex;align-items:center;gap:.4rem;flex:1;min-width:8rem;max-width:22rem;}
+  .mp-progress{flex:1;height:4px;accent-color:var(--brand);cursor:pointer;}
+  .mp-time{font-size:.7rem;color:var(--ink-muted);font-variant-numeric:tabular-nums;min-width:2.2rem;}
+  .mp-controls{display:flex;align-items:center;gap:.35rem;flex-shrink:0;}
+  .mp-btn{width:2rem;height:2rem;border:0;border-radius:999px;background:var(--wash);cursor:pointer;color:var(--ink-soft);font-size:.9rem;line-height:1;}
   .mp-btn.primary{background:var(--brand);color:#fff;}
   .mp-btn:hover{filter:brightness(1.05);}
-  .mp-status{font-size:.72rem;color:var(--ink-muted);max-width:10rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mp-status{font-size:.72rem;color:var(--ink-muted);max-width:9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .music-list-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;}
+  .music-list-head h2{margin:0;font-size:1.1rem;}
+  .music-list-count{font-size:.8rem;color:var(--ink-muted);}
   .music-play-btn{
     flex-shrink:0;width:2rem;height:2rem;border:0;border-radius:999px;
-    background:var(--brand-soft);color:var(--brand-strong);cursor:pointer;margin-right:.35rem;
+    background:var(--brand-soft, #e8f0fe);color:var(--brand-strong, #1a73e8);cursor:pointer;margin-right:.4rem;
+    font-size:.75rem;line-height:1;
   }
-  .music-row{display:flex;align-items:center;}
-  body:has(#music-player-bar:not([hidden])) .content{padding-bottom:4.5rem;}
+  .music-play-btn:hover{filter:brightness(0.97);}
+  .music-row{display:flex;align-items:center;gap:.35rem;padding:.45rem .35rem;border-radius:.5rem;cursor:default;}
+  .music-row:hover{background:var(--wash);}
+  .music-row.playing{background:color-mix(in srgb, var(--brand) 12%, transparent);}
+  .music-row.playing .music-play-btn{background:var(--brand);color:#fff;}
+  .music-cover{width:48px;height:48px;border-radius:.4rem;object-fit:cover;flex-shrink:0;cursor:pointer;}
+  .music-body{min-width:0;flex:1;cursor:pointer;}
+  .music-title{margin:0;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .music-title a{color:inherit;text-decoration:none;}
+  .music-title a:hover{color:var(--brand);}
+  .music-sub{display:flex;gap:.75rem;font-size:.75rem;color:var(--ink-muted);margin-top:.15rem;}
+  body:has(#music-player-bar:not([hidden])) .content{padding-bottom:4.8rem;}
   `;
   document.head.appendChild(s);
 }
