@@ -78,7 +78,7 @@ jobs:
           echo "== bundle =="
           find desktop/src-tauri/target/release/bundle -type f 2>/dev/null | head -50 || true
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: bili-desktop-${{ matrix.platform }}
           path: |
@@ -91,4 +91,14 @@ jobs:
             desktop/src-tauri/target/release/bundle/nsis/**
             desktop/src-tauri/target/release/*.exe
           if-no-files-found: warn
+          retention-days: 14
+
+      # Windows 独立 EXE 单独上传，便于直接下载运行
+      - name: Upload standalone Windows EXE
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v6
+        with:
+          name: bili-desktop-windows-standalone-exe
+          path: desktop/src-tauri/target/release/bilibili-history-desktop.exe
+          if-no-files-found: error
           retention-days: 14
