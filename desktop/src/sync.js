@@ -1,8 +1,4 @@
-/** B 站登录 + 历史同步（对齐扩展：全量/增量 + 进度） */
-
-function bili() {
-  return globalThis.__bili || {};
-}
+/** Login + history sync (desktop, mirrors extension flow) */
 
 async function invoke(cmd, args) {
   const { invoke: inv } = await import("@tauri-apps/api/core");
@@ -11,7 +7,7 @@ async function invoke(cmd, args) {
 
 function setLoginStatus(text) {
   const el = document.getElementById("login-status");
-  if (el) el.textContent = text;
+  if (el) el.textContent = text || "";
 }
 
 async function refreshLoginUi() {
@@ -21,7 +17,8 @@ async function refreshLoginUi() {
     if (st?.logged_in) {
       const name = st.uname || "已登录";
       if (btn) btn.textContent = name.length > 8 ? name.slice(0, 8) + "…" : name;
-      setLoginStatus(`当前：已登录 ${name}${st.mid ? " (mid " + st.mid + ")" : ""}`);
+      const csrf = st.has_csrf ? "" : " · 缺少 bili_jct（删除历史需要）";
+      setLoginStatus(`当前：已登录 ${name}${st.mid ? " (mid " + st.mid + ")" : ""}${csrf}`);
       return st;
     }
   } catch (e) {
@@ -45,18 +42,25 @@ function closeLoginModal() {
 
 async function saveLogin() {
   const ta = document.getElementById("login-sessdata");
+  const jctEl = document.getElementById("login-bili-jct");
   const sessdata = (ta?.value || "").trim();
+  const biliJct = (jctEl?.value || "").trim();
   if (!sessdata) {
     setLoginStatus("请粘贴 SESSDATA");
     return;
   }
   setLoginStatus("正在验证…");
   try {
-    const st = await invoke("save_sessdata", { sessdata });
-    setLoginStatus(`验证成功：${st.uname || "已登录"}`);
+    const st = await invoke("save_sessdata", {
+      sessdata,
+      biliJct: biliJct || null,
+    });
+    const tip = st.has_csrf ? "" : "（未填 bili_jct，删除历史将不可用）";
+    setLoginStatus(`验证成功：${st.uname || "已登录"}${tip}`);
     if (ta) ta.value = "";
+    if (jctEl) jctEl.value = "";
     await refreshLoginUi();
-    setTimeout(closeLoginModal, 500);
+    setTimeout(closeLoginModal, 600);
   } catch (e) {
     setLoginStatus("验证失败：" + (e?.message || String(e)));
   }
@@ -65,24 +69,16 @@ async function saveLogin() {
 async function clearLogin() {
   try {
     await invoke("clear_sessdata");
+    await refreshLoginUi();
+    setLoginStatus("已清除登录");
   } catch (e) {
-    console.warn(e);
+    setLoginStatus("清除失败：" + (e?.message || String(e)));
   }
-  await refreshLoginUi();
 }
 
 function openSyncModal() {
   const m = document.getElementById("sync-modal");
-  if (!m) return;
-  m.hidden = false;
-  const prog = document.getElementById("sync-progress");
-  const result = document.getElementById("sync-result");
-  if (prog) prog.hidden = true;
-  if (result) {
-    result.hidden = true;
-    result.className = "sync-result";
-    result.textContent = "";
-  }
+  if (m) m.hidden = false;
   void refreshSyncMeta();
 }
 
@@ -99,7 +95,7 @@ async function refreshSyncMeta() {
       if (meta?.last_sync_at) {
         el.textContent = "上次同步：" + new Date(meta.last_sync_at).toLocaleString();
       } else {
-        el.textContent = "尚未同步过（建议先做一次全量同步）";
+        el.textContent = "尚未同步过";
       }
     }
   } catch {
@@ -107,81 +103,66 @@ async function refreshSyncMeta() {
   }
 }
 
-function updateProgressUI({ pages, fetched, newest, oldest }) {
-  const prog = document.getElementById("sync-progress");
-  if (prog) prog.hidden = false;
-  const set = (id, v) => {
-    const n = document.getElementById(id);
-    if (n) n.textContent = String(v);
-  };
-  set("sync-stat-fetched", fetched);
-  set("sync-stat-pages", pages);
-  set("sync-stat-newest", newest || "—");
-  const tip = document.getElementById("sync-progress-tip");
-  if (tip) {
-    tip.textContent = oldest
-      ? `已回溯到 ${new Date(oldest * 1000).toLocaleString()} 的观看记录`
-      : "正在获取第一页数据…";
-  }
+function setSyncProgress(visible, tip) {
+  const box = document.getElementById("sync-progress");
+  const tipEl = document.getElementById("sync-progress-tip");
+  if (box) box.hidden = !visible;
+  if (tipEl && tip) tipEl.textContent = tip;
 }
 
-async function runSync() {
-  const full = document.querySelector('input[name="sync-mode"]:checked')?.value === "full";
-  const startBtn = document.getElementById("sync-start");
-  const result = document.getElementById("sync-result");
-  const meta = bili().fileMeta;
-  if (startBtn) {
-    startBtn.disabled = true;
-    startBtn.textContent = "同步中…";
+function setSyncStats(fetched, pages, newest) {
+  const a = document.getElementById("sync-stat-fetched");
+  const b = document.getElementById("sync-stat-pages");
+  const c = document.getElementById("sync-stat-newest");
+  if (a) a.textContent = String(fetched);
+  if (b) b.textContent = String(pages);
+  if (c) c.textContent = newest != null ? String(newest) : "—";
+}
+
+function setSyncResult(text, ok) {
+  const el = document.getElementById("sync-result");
+  if (!el) return;
+  if (!text) {
+    el.hidden = true;
+    el.textContent = "";
+    el.className = "sync-result";
+    return;
   }
-  if (result) result.hidden = true;
+  el.hidden = false;
+  el.textContent = text;
+  el.className = "sync-result " + (ok ? "ok" : "err");
+}
+
+async function runHistorySync() {
+  const mode =
+    document.querySelector('input[name="sync-mode"]:checked')?.value || "incremental";
+  setSyncResult("");
+  setSyncProgress(true, "正在获取第一页数据…");
+  setSyncStats(0, 0, null);
+  const startBtn = document.getElementById("sync-start");
+  if (startBtn) startBtn.disabled = true;
 
   try {
     const st = await invoke("get_login_status");
     if (!st?.logged_in) {
-      closeSyncModal();
-      openLoginModal();
-      throw new Error("请先登录（配置 SESSDATA）");
+      throw new Error("未登录，请先配置 SESSDATA");
     }
 
-    let max = 0;
-    let viewAt = 0;
-    let pages = 0;
-    let fetched = 0;
-    const all = [];
-    const watermark = full ? 0 : (await invoke("get_sync_meta"))?.watermark_view_at || 0;
-    const maxPages = full ? 200 : 80;
+    let meta = { watermark_view_at: 0, last_sync_at: null };
+    try {
+      meta = await invoke("get_sync_meta");
+    } catch {}
 
-    updateProgressUI({ pages: 0, fetched: 0, newest: 0, oldest: 0 });
+    const watermark =
+      mode === "full" ? 0 : Number(meta?.watermark_view_at || 0) || 0;
 
-    for (let i = 0; i < maxPages; i++) {
-      const page = await invoke("fetch_history_page", { max, viewAt });
-      const list = page?.items || [];
-      if (!list.length) break;
-      pages += 1;
-      fetched += list.length;
-      for (const it of list) all.push(it);
-      max = page.cursor_max || 0;
-      viewAt = page.cursor_view_at || 0;
-      const times = list.map((x) => Number(x.view_at) || 0).filter((t) => t > 0);
-      const oldest = times.length ? Math.min(...times) : 0;
-      const newest = times.length ? Math.max(...times) : 0;
-      updateProgressUI({ pages, fetched, newest, oldest });
+    const b = globalThis.__bili;
+    if (!b) throw new Error("应用未就绪");
 
-      if (page.is_end) break;
-      if (!full && watermark > 0 && oldest > 0 && oldest < watermark) break;
-      await new Promise((r) => setTimeout(r, 800));
-    }
-
-    await invoke("save_sync_meta", {
-      watermarkViewAt: all.reduce((m, x) => Math.max(m, Number(x.view_at) || 0), watermark || 0),
-      lastSyncAt: Date.now(),
-    });
-
-    const empty = {
+    let pack = b.pack || {
       formatVersion: 2,
-      exportedAt: new Date().toISOString(),
-      history: all,
+      exportedAt: "",
+      history: [],
       historyEvents: [],
       historyTombstones: [],
       likedMusic: [],
@@ -190,62 +171,92 @@ async function runSync() {
       subscribedCollections: [],
       subscribedCollectionResources: [],
     };
-    const b = bili();
-    const prev = b.pack;
-    const pack = prev
-      ? { ...prev, history: all, exportedAt: empty.exportedAt }
-      : empty;
+
+    const existing = new Map();
+    for (const it of pack.history || []) {
+      const k = String(it.business || "archive") + "|" + String(it.id ?? "");
+      existing.set(k, it);
+    }
+
+    let max = 0;
+    let viewAt = 0;
+    let pages = 0;
+    let fetched = 0;
+    let newest = 0;
+    let isEnd = false;
+
+    while (!isEnd && pages < 200) {
+      const page = await invoke("fetch_history_page", { max, viewAt });
+      pages += 1;
+      const items = page?.items || [];
+      fetched += items.length;
+      for (const it of items) {
+        const va = Number(it.view_at || 0);
+        if (va > newest) newest = va;
+        if (watermark && va && va <= watermark) {
+          isEnd = true;
+          break;
+        }
+        const k = String(it.business || "archive") + "|" + String(it.id ?? "");
+        existing.set(k, it);
+      }
+      setSyncStats(fetched, pages, newest || null);
+      setSyncProgress(true, `已扫描 ${pages} 页，累计 ${fetched} 条…`);
+
+      if (page?.is_end || !items.length) break;
+      if (isEnd) break;
+      max = page.cursor_max || 0;
+      viewAt = page.cursor_view_at || 0;
+      if (!max && !viewAt) break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    const history = Array.from(existing.values()).sort(
+      (a, c) => Number(c.view_at || 0) - Number(a.view_at || 0),
+    );
+    pack = { ...pack, history, exportedAt: new Date().toISOString() };
     b.pack = pack;
-    b.sourceName = `B站同步 · ${st.uname || ""} · ${all.length} 条`;
-    if (meta) {
-      meta.textContent =
+    b.sourceName = "在线同步 · B 站历史";
+    if (b.fileMeta) {
+      b.fileMeta.textContent =
         b.sourceName +
         "\n历史 " +
-        pack.history.length +
+        history.length +
         " · 收藏 " +
         (pack.favFolders?.length || 0) +
         " · 音乐 " +
         (pack.likedMusic?.length || 0);
     }
     if (typeof b.persistPack === "function") {
-      try { await b.persistPack(); } catch (err) { console.warn("[sync] persistPack", err); }
+      try {
+        await b.persistPack();
+      } catch (err) {
+        console.warn("[sync] persistPack", err);
+      }
     }
     if (typeof b.resetAndRender === "function") b.resetAndRender();
-    else if (typeof b.render === "function") b.render();
+    else b.render?.();
 
-    if (result) {
-      result.hidden = false;
-      result.className = "sync-result ok";
-      result.textContent = `${full ? "全量" : "增量"}同步完成：共拉取 ${fetched} 条（${pages} 页），已保存到本地缓存`;
-    }
+    const now = Date.now();
+    await invoke("save_sync_meta", {
+      watermarkViewAt: newest || watermark || 0,
+      lastSyncAt: now,
+    });
+
+    setSyncProgress(false);
+    setSyncResult(`同步完成：本轮拉取 ${fetched} 条，本地历史共 ${history.length} 条`, true);
     await refreshSyncMeta();
   } catch (e) {
-    const msg = e?.message || String(e);
-    if (result) {
-      result.hidden = false;
-      result.className = "sync-result err";
-      result.textContent = "同步失败：" + msg;
-    }
-    if (meta) meta.textContent = "同步失败：" + msg;
+    console.error(e);
+    setSyncProgress(false);
+    setSyncResult("同步失败：" + (e?.message || String(e)), false);
   } finally {
-    if (startBtn) {
-      startBtn.disabled = false;
-      startBtn.textContent = "开始同步";
-    }
+    if (startBtn) startBtn.disabled = false;
   }
-}
-
-async function onToolbarSync() {
-  const st = await refreshLoginUi();
-  if (!st?.logged_in) {
-    openLoginModal();
-    return;
-  }
-  openSyncModal();
 }
 
 document.getElementById("btn-login")?.addEventListener("click", openLoginModal);
-document.getElementById("btn-sync-history")?.addEventListener("click", () => void onToolbarSync());
+document.getElementById("btn-sync-history")?.addEventListener("click", openSyncModal);
 document.getElementById("login-close")?.addEventListener("click", closeLoginModal);
 document.getElementById("login-cancel")?.addEventListener("click", closeLoginModal);
 document.getElementById("login-save")?.addEventListener("click", () => void saveLogin());
@@ -255,7 +266,7 @@ document.getElementById("login-modal")?.addEventListener("click", (e) => {
 });
 document.getElementById("sync-close")?.addEventListener("click", closeSyncModal);
 document.getElementById("sync-cancel")?.addEventListener("click", closeSyncModal);
-document.getElementById("sync-start")?.addEventListener("click", () => void runSync());
+document.getElementById("sync-start")?.addEventListener("click", () => void runHistorySync());
 document.getElementById("sync-modal")?.addEventListener("click", (e) => {
   if (e.target?.id === "sync-modal") closeSyncModal();
 });

@@ -160,15 +160,19 @@
           <button type="button" class="icon-btn" id="login-close" aria-label="关闭">✕</button>
         </div>
         <div class="modal-body">
-          <p class="hint">桌面端无法直接读取浏览器 Cookie。请在已登录 B 站的浏览器中复制 <code>SESSDATA</code> 粘贴到下方（仅保存在本机应用目录）。</p>
+          <p class="hint">桌面端无法直接读取浏览器 Cookie。请在已登录 B 站的浏览器中复制凭证（仅保存在本机应用目录）。</p>
           <ol class="hint-list">
             <li>打开 bilibili.com 并登录</li>
             <li>F12 → 应用 / Application → Cookie → bilibili.com</li>
-            <li>找到 <code>SESSDATA</code>，复制其值</li>
+            <li>找到 <code>SESSDATA</code> 与 <code>bili_jct</code>，分别复制</li>
           </ol>
           <label class="field"><span>SESSDATA</span>
             <textarea id="login-sessdata" rows="3" placeholder="粘贴 SESSDATA…" spellcheck="false"></textarea>
           </label>
+          <label class="field"><span>bili_jct（删除历史需要）</span>
+            <input id="login-bili-jct" type="text" placeholder="粘贴 bili_jct…" spellcheck="false" autocomplete="off" />
+          </label>
+          <p class="hint">同步历史只需 SESSDATA；删除 B 站历史记录需要两者。</p>
           <p class="hint" id="login-status">当前：未登录</p>
         </div>
         <div class="modal-foot">
