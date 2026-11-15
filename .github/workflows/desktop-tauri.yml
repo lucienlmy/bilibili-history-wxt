@@ -1,21 +1,22 @@
 name: Desktop Tauri Build
 
+# 仅手动触发，避免频繁 push 自动构建
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - desktop-tauri
-      - main
-    paths:
-      - "desktop/**"
-      - ".github/workflows/desktop-tauri.yml"
-  pull_request:
-    branches:
-      - desktop-tauri
-      - main
-    paths:
-      - "desktop/**"
-      - ".github/workflows/desktop-tauri.yml"
+  # push:
+  #   branches:
+  #     - desktop-tauri
+  #     - main
+  #   paths:
+  #     - "desktop/**"
+  #     - ".github/workflows/desktop-tauri.yml"
+  # pull_request:
+  #   branches:
+  #     - desktop-tauri
+  #     - main
+  #   paths:
+  #     - "desktop/**"
+  #     - ".github/workflows/desktop-tauri.yml"
 
 jobs:
   build:
