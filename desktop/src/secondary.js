@@ -188,15 +188,37 @@ function bootSecondary() {
   };
 
   R["video-backup"] = function () {
-    const { contentEl, pageCount, paginationEl } = g();
+    const { contentEl, pageCount, paginationEl, pack } = g();
     paginationEl.hidden = true;
     pageCount.textContent = "";
+    const hist = pack?.history?.length || 0;
     contentEl.innerHTML = `
-  ${pageShellNote("视频备份（下载缓存）为扩展能力。")}
   <div class="panel-card">
     <h3>视频备份</h3>
-    <p class="panel-desc">扩展可备份视频到本地。桌面版暂不支持。</p>
+    <p class="panel-desc">扩展支持将视频下载后上传到百度网盘，并维护备份任务队列。桌面版先提供与扩展一致的页面结构与本地备份入口；完整下载/网盘上传将按扩展逻辑逐步对齐。</p>
+    <div class="kv" style="margin-top:1rem">
+      <span>当前历史条数</span><span>${hist}</span>
+    </div>
+    <div class="kv">
+      <span>备份任务队列</span><span>桌面版暂无任务（扩展侧队列）</span>
+    </div>
+    <div class="kv">
+      <span>本地目录备份</span><span>可导出 JSON 到选定目录</span>
+    </div>
+    <div class="panel-actions" style="margin-top:1rem">
+      <button type="button" class="btn" id="vb-goto-backup-local">本地目录备份</button>
+      <button type="button" class="btn" id="vb-goto-backup-json">JSON 文件</button>
+      <button type="button" class="btn primary" id="vb-goto-history">查看历史记录</button>
+    </div>
+    <p class="panel-desc" style="margin-top:1rem">说明：网盘登录、任务重试、编码偏好等能力与扩展一致后会在此页开放。</p>
   </div>`;
+    const go = (page) => {
+      const b = globalThis.__bili;
+      if (b) { b.page = page; b.render?.(); }
+    };
+    document.getElementById("vb-goto-backup-local")?.addEventListener("click", () => go("backup-local"));
+    document.getElementById("vb-goto-backup-json")?.addEventListener("click", () => go("backup-json"));
+    document.getElementById("vb-goto-history")?.addEventListener("click", () => go("history"));
   };
 
   R.feedback = function () {
