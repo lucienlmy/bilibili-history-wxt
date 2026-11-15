@@ -17,6 +17,7 @@ function bootSecondary() {
       colsEl: b.colsEl,
       escapeHtml: b.escapeHtml || ((s) => String(s ?? "")),
       openBackup: b.openBackup,
+      openExternal: b.openExternal,
       render: b.render,
       setCols(v) { if (b) b.cols = v; },
       setPageSize(v) { if (b) b.PAGE_SIZE = v; },
@@ -36,6 +37,19 @@ function bootSecondary() {
   }
   function savePrefs(p) {
     localStorage.setItem("bili-desktop-settings", JSON.stringify(p));
+  }
+
+  const VB_QUEUE_KEY = "bili-desktop-video-backup-queue";
+  function loadVbQueue() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(VB_QUEUE_KEY) || "[]");
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+  function saveVbQueue(list) {
+    localStorage.setItem(VB_QUEUE_KEY, JSON.stringify(list));
   }
 
   R.settings = function () {
@@ -152,6 +166,7 @@ function bootSecondary() {
       <div class="kv"><span>当前数据源</span><span>${escapeHtml(sourceName || "未加载")}</span></div>
       <div class="kv"><span>历史</span><span>${(pack?.history || []).length}</span></div>
       <div class="kv"><span>收藏夹</span><span>${(pack?.favFolders || []).length}</span></div>
+      <div class="kv"><span>订阅合集</span><span>${(pack?.subscribedCollections || []).length}</span></div>
       <div class="kv"><span>音乐</span><span>${(pack?.likedMusic || []).length}</span></div>
     </div>
   </div>`;
@@ -188,37 +203,184 @@ function bootSecondary() {
   };
 
   R["video-backup"] = function () {
-    const { contentEl, pageCount, paginationEl, pack } = g();
+    const { contentEl, pageCount, paginationEl, pack, escapeHtml, openExternal } = g();
     paginationEl.hidden = true;
     pageCount.textContent = "";
-    const hist = pack?.history?.length || 0;
-    contentEl.innerHTML = `
-  <div class="panel-card">
-    <h3>视频备份</h3>
-    <p class="panel-desc">扩展支持将视频下载后上传到百度网盘，并维护备份任务队列。桌面版先提供与扩展一致的页面结构与本地备份入口；完整下载/网盘上传将按扩展逻辑逐步对齐。</p>
-    <div class="kv" style="margin-top:1rem">
-      <span>当前历史条数</span><span>${hist}</span>
-    </div>
-    <div class="kv">
-      <span>备份任务队列</span><span>桌面版暂无任务（扩展侧队列）</span>
-    </div>
-    <div class="kv">
-      <span>本地目录备份</span><span>可导出 JSON 到选定目录</span>
-    </div>
-    <div class="panel-actions" style="margin-top:1rem">
-      <button type="button" class="btn" id="vb-goto-backup-local">本地目录备份</button>
-      <button type="button" class="btn" id="vb-goto-backup-json">JSON 文件</button>
-      <button type="button" class="btn primary" id="vb-goto-history">查看历史记录</button>
-    </div>
-    <p class="panel-desc" style="margin-top:1rem">说明：网盘登录、任务重试、编码偏好等能力与扩展一致后会在此页开放。</p>
-  </div>`;
-    const go = (page) => {
-      const b = globalThis.__bili;
-      if (b) { b.page = page; b.render?.(); }
+
+    const statusLabel = (s) => {
+      if (s === "done") return "已打开";
+      if (s === "failed") return "失败";
+      return "待处理";
     };
-    document.getElementById("vb-goto-backup-local")?.addEventListener("click", () => go("backup-local"));
-    document.getElementById("vb-goto-backup-json")?.addEventListener("click", () => go("backup-json"));
-    document.getElementById("vb-goto-history")?.addEventListener("click", () => go("history"));
+    const statusChip = (s) => {
+      if (s === "done") return "ok";
+      if (s === "failed") return "";
+      return "";
+    };
+
+    const renderVb = () => {
+      const queue = loadVbQueue();
+      const hist = pack?.history || [];
+      const recent = hist
+        .filter((x) => (x.bvid || x.bv_id) && (x.business || "archive") === "archive")
+        .slice(0, 30);
+      const pending = queue.filter((x) => x.status === "pending").length;
+      const done = queue.filter((x) => x.status === "done").length;
+
+      const queueRows = queue.length
+        ? queue
+            .map((item, idx) => {
+              const bvid = item.bvid || "";
+              const title = item.title || bvid || "未命名";
+              return `<div class="vb-row" data-vb-idx="${idx}">
+          <div class="vb-row-main">
+            <strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong>
+            <span class="vb-bvid">${escapeHtml(bvid)}</span>
+          </div>
+          <div class="vb-row-actions">
+            <span class="chip ${statusChip(item.status)}">${statusLabel(item.status)}</span>
+            <button type="button" class="btn soft" data-vb-open="${escapeHtml(bvid)}">打开</button>
+            <button type="button" class="btn" data-vb-remove="${idx}">移除</button>
+          </div>
+        </div>`;
+            })
+            .join("")
+        : `<div class="empty-inline">队列为空。可从下方最近历史加入，或先去历史记录页浏览。</div>`;
+
+      const recentRows = recent.length
+        ? recent
+            .map((item) => {
+              const bvid = item.bvid || item.bv_id || "";
+              const title = item.title || bvid;
+              const inQ = queue.some((q) => q.bvid === bvid);
+              return `<div class="vb-row">
+          <div class="vb-row-main">
+            <strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong>
+            <span class="vb-bvid">${escapeHtml(bvid)}</span>
+          </div>
+          <div class="vb-row-actions">
+            <button type="button" class="btn soft" data-vb-add="${escapeHtml(bvid)}" data-vb-title="${escapeHtml(title)}" ${inQ ? "disabled" : ""}>${inQ ? "已在队列" : "加入队列"}</button>
+          </div>
+        </div>`;
+            })
+            .join("")
+        : `<div class="empty-inline">暂无历史视频，请先同步历史记录。</div>`;
+
+      contentEl.innerHTML = `
+  ${pageShellNote("扩展版可将视频下载后上传百度网盘。桌面版先提供本地任务队列：记录待备份视频，并一键在浏览器打开对应页面。")}
+  <div class="panel-card">
+    <div class="panel-head"><h3>视频备份</h3><span class="chip ok">本地队列</span></div>
+    <div class="kv"><span>当前历史条数</span><span>${hist.length}</span></div>
+    <div class="kv"><span>队列</span><span>待处理 ${pending} · 已处理 ${done} · 合计 ${queue.length}</span></div>
+    <div class="panel-actions" style="margin-top:1rem">
+      <button type="button" class="btn primary" id="vb-open-all" ${pending ? "" : "disabled"}>打开全部待处理</button>
+      <button type="button" class="btn" id="vb-clear-done" ${done ? "" : "disabled"}>清除已处理</button>
+      <button type="button" class="btn" id="vb-clear-all" ${queue.length ? "" : "disabled"}>清空队列</button>
+      <button type="button" class="btn" id="vb-goto-backup-local">本地目录备份</button>
+      <button type="button" class="btn" id="vb-goto-history">查看历史记录</button>
+    </div>
+    <p class="panel-desc" style="margin-top:.75rem">说明：网盘登录与自动下载上传仍为扩展能力；桌面版后续可对接本机下载目录。</p>
+  </div>
+  <div class="panel-card" style="margin-top:1rem">
+    <h3 style="margin:0 0 .75rem;font-size:1rem">备份队列</h3>
+    <div class="vb-list">${queueRows}</div>
+  </div>
+  <div class="panel-card" style="margin-top:1rem">
+    <h3 style="margin:0 0 .75rem;font-size:1rem">从最近历史加入</h3>
+    <div class="vb-list">${recentRows}</div>
+  </div>`;
+
+      const go = (page) => {
+        const b = globalThis.__bili;
+        if (b) {
+          b.page = page;
+          b.render?.();
+        }
+      };
+      document.getElementById("vb-goto-backup-local")?.addEventListener("click", () => go("backup-local"));
+      document.getElementById("vb-goto-history")?.addEventListener("click", () => go("history"));
+
+      document.getElementById("vb-clear-done")?.addEventListener("click", () => {
+        saveVbQueue(loadVbQueue().filter((x) => x.status !== "done"));
+        renderVb();
+      });
+      document.getElementById("vb-clear-all")?.addEventListener("click", () => {
+        if (!confirm("确定清空全部备份队列？")) return;
+        saveVbQueue([]);
+        renderVb();
+      });
+      document.getElementById("vb-open-all")?.addEventListener("click", async () => {
+        const list = loadVbQueue();
+        let changed = false;
+        for (const item of list) {
+          if (item.status !== "pending" || !item.bvid) continue;
+          const url = "https://www.bilibili.com/video/" + item.bvid;
+          try {
+            if (typeof openExternal === "function") await openExternal(url);
+            else window.open(url, "_blank");
+            item.status = "done";
+            changed = true;
+          } catch (e) {
+            item.status = "failed";
+            item.error = String(e?.message || e);
+            changed = true;
+          }
+        }
+        if (changed) saveVbQueue(list);
+        renderVb();
+      });
+
+      contentEl.querySelectorAll("[data-vb-open]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const bvid = btn.getAttribute("data-vb-open");
+          if (!bvid) return;
+          const url = "https://www.bilibili.com/video/" + bvid;
+          try {
+            if (typeof openExternal === "function") await openExternal(url);
+            else window.open(url, "_blank");
+            const list = loadVbQueue();
+            const hit = list.find((x) => x.bvid === bvid);
+            if (hit) {
+              hit.status = "done";
+              saveVbQueue(list);
+              renderVb();
+            }
+          } catch (e) {
+            alert("打开失败：" + (e?.message || e));
+          }
+        });
+      });
+      contentEl.querySelectorAll("[data-vb-remove]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const idx = Number(btn.getAttribute("data-vb-remove"));
+          const list = loadVbQueue();
+          if (idx >= 0 && idx < list.length) {
+            list.splice(idx, 1);
+            saveVbQueue(list);
+            renderVb();
+          }
+        });
+      });
+      contentEl.querySelectorAll("[data-vb-add]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const bvid = btn.getAttribute("data-vb-add");
+          const title = btn.getAttribute("data-vb-title") || bvid;
+          if (!bvid) return;
+          const list = loadVbQueue();
+          if (list.some((x) => x.bvid === bvid)) return;
+          list.unshift({
+            bvid,
+            title,
+            status: "pending",
+            addedAt: Date.now(),
+          });
+          saveVbQueue(list);
+          renderVb();
+        });
+      });
+    };
+
+    renderVb();
   };
 
   R.feedback = function () {
