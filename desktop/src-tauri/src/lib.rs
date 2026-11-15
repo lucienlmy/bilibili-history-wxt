@@ -16,6 +16,8 @@ struct SessionFile {
     sessdata: Option<String>,
     watermark_view_at: Option<i64>,
     last_sync_at: Option<i64>,
+    backup_dir: Option<String>,
+    last_dir_backup_at: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -284,7 +286,7 @@ fn load_local_pack(app: AppHandle) -> Result<Option<serde_json::Value>, String> 
     if !path.exists() {
         return Ok(None);
     }
-    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let text = fs::read_to_string(&path).map_err(|e| e.to_string()?;
     let val: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     Ok(Some(val))
 }
@@ -296,6 +298,127 @@ fn clear_local_pack(app: AppHandle) -> Result<(), String> {
         fs::remove_file(&path).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+#[derive(Serialize)]
+struct BackupDirStatus {
+    path: Option<String>,
+    last_dir_backup_at: Option<i64>,
+}
+
+#[tauri::command]
+fn get_backup_dir_status(app: AppHandle) -> Result<BackupDirStatus, String> {
+    let s = read_session(&app)?;
+    Ok(BackupDirStatus {
+        path: s.backup_dir,
+        last_dir_backup_at: s.last_dir_backup_at,
+    })
+}
+
+#[tauri::command]
+fn pick_backup_directory(app: AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let folder = app
+        .dialog()
+        .file()
+        .set_title("选择本地备份目录")
+        .blocking_pick_folder();
+    let Some(path) = folder else {
+        return Ok(None);
+    };
+    let path_str = path.to_string();
+    let test = PathBuf::from(&path_str).join(format!(
+        ".bilibili-history-write-test-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0)
+    ));
+    fs::write(&test, b"ok").map_err(|e| format!("目录不可写：{}", e))?;
+    let _ = fs::remove_file(&test);
+    let mut s = read_session(&app)?;
+    s.backup_dir = Some(path_str.clone());
+    write_session(&app, &s)?;
+    Ok(Some(path_str))
+}
+
+#[tauri::command]
+fn clear_backup_directory(app: AppHandle) -> Result<(), String> {
+    let mut s = read_session(&app)?;
+    s.backup_dir = None;
+    write_session(&app, &s)
+}
+
+fn chrono_like_date() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let days = secs / 86400;
+    let z = days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{:04}-{:02}-{:02}", y, m, d)
+}
+
+#[tauri::command]
+fn export_pack_to_backup_dir(
+    app: AppHandle,
+    pack: serde_json::Value,
+) -> Result<String, String> {
+    let s = read_session(&app)?;
+    let dir = s
+        .backup_dir
+        .filter(|p| !p.is_empty())
+        .ok_or_else(|| "请先选择备份目录".to_string())?;
+    let dir_path = PathBuf::from(&dir);
+    if !dir_path.is_dir() {
+        return Err("备份目录不存在，请重新选择".into());
+    }
+    let date = chrono_like_date();
+    let file_name = format!("bilibili-history-backup-{}.json", date);
+    let out = dir_path.join(&file_name);
+    let body = serde_json::to_string_pretty(&pack).map_err(|e| e.to_string())?;
+    fs::write(&out, body).map_err(|e| format!("写入失败：{}", e))?;
+    let mut s = read_session(&app)?;
+    s.last_dir_backup_at = Some(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0),
+    );
+    write_session(&app, &s)?;
+    Ok(out.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn export_pack_as_file(
+    app: AppHandle,
+    pack: serde_json::Value,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let date = chrono_like_date();
+    let path = app
+        .dialog()
+        .file()
+        .set_title("导出 JSON 备份")
+        .add_filter("JSON", &["json"])
+        .set_file_name(&format!("bilibili-history-backup-{}.json", date))
+        .blocking_save_file();
+    let Some(path) = path else {
+        return Ok(None);
+    };
+    let path_str = path.to_string();
+    let body = serde_json::to_string_pretty(&pack).map_err(|e| e.to_string())?;
+    fs::write(&path_str, body).map_err(|e| format!("写入失败：{}", e))?;
+    Ok(Some(path_str))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -314,7 +437,12 @@ pub fn run() {
             fetch_history_page,
             save_local_pack,
             load_local_pack,
-            clear_local_pack
+            clear_local_pack,
+            get_backup_dir_status,
+            pick_backup_directory,
+            clear_backup_directory,
+            export_pack_to_backup_dir,
+            export_pack_as_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
