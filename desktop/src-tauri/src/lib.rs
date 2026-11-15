@@ -9,11 +9,13 @@ struct LoginStatus {
     logged_in: bool,
     uname: Option<String>,
     mid: Option<i64>,
+    has_csrf: bool,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 struct SessionFile {
     sessdata: Option<String>,
+    bili_jct: Option<String>,
     watermark_view_at: Option<i64>,
     last_sync_at: Option<i64>,
     backup_dir: Option<String>,
@@ -160,11 +162,17 @@ fn open_external(app: AppHandle, url: String) -> Result<(), String> {
 #[tauri::command]
 fn get_login_status(app: AppHandle) -> Result<LoginStatus, String> {
     let sess = read_session(&app)?;
+    let has_csrf = sess
+        .bili_jct
+        .as_ref()
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
     let Some(s) = sess.sessdata.filter(|x| !x.is_empty()) else {
         return Ok(LoginStatus {
             logged_in: false,
             uname: None,
             mid: None,
+            has_csrf,
         });
     };
     match fetch_nav(&s) {
@@ -172,17 +180,23 @@ fn get_login_status(app: AppHandle) -> Result<LoginStatus, String> {
             logged_in: true,
             uname,
             mid,
+            has_csrf,
         }),
         Err(_) => Ok(LoginStatus {
             logged_in: false,
             uname: None,
             mid: None,
+            has_csrf,
         }),
     }
 }
 
 #[tauri::command]
-fn save_sessdata(app: AppHandle, sessdata: String) -> Result<LoginStatus, String> {
+fn save_sessdata(
+    app: AppHandle,
+    sessdata: String,
+    bili_jct: Option<String>,
+) -> Result<LoginStatus, String> {
     let s = sessdata.trim().to_string();
     if s.is_empty() {
         return Err("SESSDATA 不能为空".into());
@@ -190,11 +204,21 @@ fn save_sessdata(app: AppHandle, sessdata: String) -> Result<LoginStatus, String
     let (uname, mid) = fetch_nav(&s)?;
     let mut file = read_session(&app)?;
     file.sessdata = Some(s);
+    if let Some(j) = bili_jct {
+        let j = j.trim().to_string();
+        file.bili_jct = if j.is_empty() { None } else { Some(j) };
+    }
+    let has_csrf = file
+        .bili_jct
+        .as_ref()
+        .map(|x| !x.is_empty())
+        .unwrap_or(false);
     write_session(&app, &file)?;
     Ok(LoginStatus {
         logged_in: true,
         uname,
         mid,
+        has_csrf,
     })
 }
 
@@ -202,6 +226,7 @@ fn save_sessdata(app: AppHandle, sessdata: String) -> Result<LoginStatus, String
 fn clear_sessdata(app: AppHandle) -> Result<(), String> {
     let mut file = read_session(&app)?;
     file.sessdata = None;
+    file.bili_jct = None;
     write_session(&app, &file)
 }
 
@@ -286,7 +311,7 @@ fn load_local_pack(app: AppHandle) -> Result<Option<serde_json::Value>, String> 
     if !path.exists() {
         return Ok(None);
     }
-    let text = fs::read_to_string(&path).map_err(|e| e.to_string()?;
+    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let val: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     Ok(Some(val))
 }
@@ -421,6 +446,56 @@ fn export_pack_as_file(
     Ok(Some(path_str))
 }
 
+#[tauri::command]
+fn delete_history_item(
+    app: AppHandle,
+    business: String,
+    id: i64,
+) -> Result<(), String> {
+    let sess = read_session(&app)?;
+    let sessdata = sess
+        .sessdata
+        .filter(|x| !x.is_empty())
+        .ok_or_else(|| "未登录，请先配置 SESSDATA".to_string())?;
+    let jct = sess
+        .bili_jct
+        .filter(|x| !x.is_empty())
+        .ok_or_else(|| {
+            "缺少 bili_jct（CSRF）。请在登录里一并填写，删除历史需要该字段。".to_string()
+        })?;
+    let kid = format!("{}_{}", business.trim(), id);
+    let body = format!("kid={}&csrf={}", kid, jct);
+    let c = client()?;
+    let resp = c
+        .post("https://api.bilibili.com/x/v2/history/delete")
+        .header(
+            "Cookie",
+            format!("SESSDATA={}; bili_jct={}", sessdata, jct),
+        )
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .header("Referer", "https://www.bilibili.com")
+        .header("Origin", "https://www.bilibili.com")
+        .body(body)
+        .send()
+        .map_err(|e| format!("网络请求失败：{}", e))?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(format!("删除失败 HTTP {}", status.as_u16()));
+    }
+    let data: serde_json::Value = resp
+        .json()
+        .map_err(|e| format!("解析响应失败：{}", e))?;
+    let code = data.get("code").and_then(|c| c.as_i64()).unwrap_or(-1);
+    if code != 0 {
+        return Err(data
+            .get("message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("删除 B 站历史记录失败")
+            .to_string());
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -442,7 +517,8 @@ pub fn run() {
             pick_backup_directory,
             clear_backup_directory,
             export_pack_to_backup_dir,
-            export_pack_as_file
+            export_pack_as_file,
+            delete_history_item
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
