@@ -132,10 +132,20 @@ async function syncAllCollections() {
   return { collections: folders.length, resources: allResources.length };
 }
 
+function isCollectionsPage() {
+  if (globalThis.__bili?.page === "collections") return true;
+  const title = document.getElementById("page-title")?.textContent || "";
+  if (title.includes("合集")) return true;
+  return Boolean(
+    document.querySelector('.nav-item.active[data-page="collections"]') ||
+      document.querySelector('.nav-sub.active[data-page="collections"]')
+  );
+}
+
 /** 在合集页注入同步按钮（不依赖 main.js 改动） */
 function injectCollectionUi() {
   const b = globalThis.__bili;
-  if (!b || b.page !== "collections") return;
+  if (!b || !isCollectionsPage()) return;
 
   const content = b.contentEl || document.getElementById("content");
   if (!content) return;
