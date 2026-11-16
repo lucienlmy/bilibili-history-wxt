@@ -196,7 +196,8 @@ function hasActiveFilters() {
 function updateClearBtn() {
   const btn = document.getElementById("btn-clear-filters");
   if (!btn) return;
-  btn.hidden = !(page === "history" || page === "favorites" || page === "music") || !hasActiveFilters();
+  btn.hidden = !["history", "favorites", "music", "collections"].includes(page)
+  || !hasActiveFilters();
 }
 function clearFilters() {
   search = ""; searchKind = "all"; typeFilter = "all"; sort = "time-desc"; dateStart = ""; dateEnd = "";
