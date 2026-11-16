@@ -100,7 +100,7 @@ jobs:
       # 上传独立 Windows EXE；tag 与原桌面版区分，避免互相覆盖
       - name: Upload standalone Windows EXE
         if: matrix.platform == 'windows-latest'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: bilibili-unlimited-history-build-${{ github.run_number }}
           name: Bilibili Unlimited History build ${{ github.run_number }}
