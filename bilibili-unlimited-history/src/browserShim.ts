@@ -53,6 +53,40 @@ class EventBus {
 const storageChanged = new EventBus();
 const runtimeOnMessage = new EventBus();
 
+/** 从 Rust 本地文件加载配置到 localStorage 缓存（应用启动时调用一次）。 */
+export const initStorageFromDisk = async (): Promise<void> => {
+  try {
+    const { loadUiSettings } = await import("./tauri");
+    const settings = (await loadUiSettings()) as Record<string, unknown>;
+    if (settings && typeof settings === "object") {
+      for (const [key, value] of Object.entries(settings)) {
+        if (value !== undefined) writeRaw(key, value);
+      }
+    }
+  } catch (error) {
+    console.warn("[browserShim] 读取本地配置失败，沿用缓存", error);
+  }
+};
+
+/** 把当前所有配置写回 Rust 本地文件（防抖，避免频繁写盘）。 */
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+const schedulePersist = () => {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    const all: Record<string, unknown> = {};
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const storageKey = localStorage.key(i);
+      if (storageKey?.startsWith(KEY_PREFIX)) {
+        all[storageKey.slice(KEY_PREFIX.length)] = readRaw(storageKey.slice(KEY_PREFIX.length));
+      }
+    }
+    import("./tauri")
+      .then(({ saveUiSettings }) => saveUiSettings(all))
+      .catch((error) => console.warn("[browserShim] 保存本地配置失败", error));
+  }, 300);
+};
+
 const readRaw = (key: string): unknown => {
   const raw = localStorage.getItem(KEY_PREFIX + key);
   if (raw === null) return undefined;
@@ -116,6 +150,7 @@ const storageLocal = {
       changes[key] = { oldValue, newValue };
     }
     emitChanges(changes);
+    schedulePersist();
   },
 
   async remove(keys: string | string[]) {
@@ -127,6 +162,7 @@ const storageLocal = {
       changes[key] = { oldValue };
     }
     emitChanges(changes);
+    schedulePersist();
   },
 
   async clear() {
@@ -142,6 +178,7 @@ const storageLocal = {
       localStorage.removeItem(storageKey);
     }
     emitChanges(changes);
+    schedulePersist();
   },
 
   async getBytesInUse() {

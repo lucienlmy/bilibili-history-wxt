@@ -1,5 +1,5 @@
 // browser 兼容层必须最先加载：扩展页面在模块顶层就会用到全局 browser
-import "./browserShim";
+import { initStorageFromDisk } from "./browserShim";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { initTheme } from "../../utils/theme";
@@ -19,7 +19,7 @@ const mount = () => {
   );
 };
 
-// 先灌入本地数据再挂载 UI，保证首屏即可读到历史记录
-bootstrapLocalData()
+// 先加载磁盘配置 + 灌入本地数据，再挂载 UI，保证首屏即可读到历史与设置
+Promise.all([initStorageFromDisk(), bootstrapLocalData()])
   .catch((error) => console.error("[desktop] 数据初始化失败", error))
   .finally(mount);

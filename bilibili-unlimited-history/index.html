@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- B站图片 CDN 有防盗链：不带第三方 referer 才能显示。扩展靠 DNR 改 referer，
+         桌面 WebView 没有 DNR，这里全局禁用 referer 让 hdslb.com 图片正常加载。 -->
+    <meta name="referrer" content="no-referrer" />
     <title>Bilibili 无限历史记录 · 桌面版</title>
   </head>
   <body>

@@ -59,6 +59,31 @@ fn write_session(app: &AppHandle, s: &SessionFile) -> Result<(), String> {
     fs::write(path, body).map_err(|e| e.to_string())
 }
 
+fn ui_settings_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join("ui_settings.json"))
+}
+
+/// 读取扩展 UI 的配置（browser.storage.local 的桌面持久化文件）
+#[tauri::command]
+fn load_ui_settings(app: AppHandle) -> Result<serde_json::Value, String> {
+    let path = ui_settings_path(&app)?;
+    if !path.exists() {
+        return Ok(serde_json::json!({}));
+    }
+    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&text).map_err(|e| e.to_string())
+}
+
+/// 写入扩展 UI 的配置
+#[tauri::command]
+fn save_ui_settings(app: AppHandle, settings: serde_json::Value) -> Result<(), String> {
+    let path = ui_settings_path(&app)?;
+    let body = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    fs::write(path, body).map_err(|e| e.to_string())
+}
+
 fn client() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -655,6 +680,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             open_external,
             get_login_status,
+            load_ui_settings,
+            save_ui_settings,
             save_sessdata,
             clear_sessdata,
             get_sync_meta,

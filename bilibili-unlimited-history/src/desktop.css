@@ -69,6 +69,14 @@ body,
 
 .desktop-content {
   flex: 1;
-  overflow: hidden;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
+}
+
+/* 扩展 MainLayout 用的是 h-screen（100vh），嵌在桌面内容区里会多出一个工具栏的高度
+   导致底部被裁；这里让它在桌面壳里按可用高度撑满，滚动交给 .desktop-content */
+.desktop-content > .h-screen {
+  height: 100% !important;
 }
