@@ -411,6 +411,31 @@ try {
   // 覆盖失败则保留原行为
 }
 
+/** 拦截所有 target="_blank" 的外链点击：桌面端不该在 WebView 里新建标签/窗口，
+ *  统一交给系统浏览器打开（扩展组件里大量使用 target="_blank"，源码不改）。 */
+try {
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey) return;
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest?.("a") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const href = anchor.getAttribute("href") || "";
+      // 与旧桌面版一致：应用内任何 http(s) 外链都交给系统浏览器，不在 WebView 里跳转/新建标签
+      if (!/^https?:\/\//i.test(href)) return;
+
+      event.preventDefault();
+      invoke("open_external", { url: href }).catch((error) => {
+        console.warn("[browserShim] 外链打开失败", error);
+      });
+    },
+    true,
+  );
+} catch {
+  // 监听失败则保留原行为（在 WebView 里新建标签）
+}
+
 /** polyfill showDirectoryPicker：让本地目录备份页认为环境支持 File System Access API。 */
 try {
   if (!("showDirectoryPicker" in window)) {
