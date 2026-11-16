@@ -1,0 +1,99 @@
+
+/**
+ * Page-specific layout rules
+ *
+ * 全局 hidden 优先级修正，防止 display:flex 等样式覆盖 hidden。
+ */
+
+[hidden] {
+  display: none !important;
+}
+
+/* 页面切换时，顶部工具栏保持正常布局。 */
+#toolbar {
+  width: 100%;
+  min-width: 0;
+}
+
+#toolbar .toolbar-inner {
+  width: 100%;
+}
+
+/* 搜索框在列表页面独立占据空间。 */
+#filters .filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+#filters .filters-row > #search {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+/* 非历史页面不显示历史筛选项。 */
+#page[data-current-page="favorites"] #filters,
+#page[data-current-page="collections"] #filters,
+#page[data-current-page="music"] #filters {
+  margin-top: 0.75rem;
+}
+
+/* 收藏夹和合集拥有自己的内容区域，不继承历史页面的负边距。 */
+#page[data-current-page="favorites"] .content,
+#page[data-current-page="collections"] .content {
+  min-width: 0;
+}
+
+/* AI 搜索使用自己的工作区布局。 */
+#page[data-current-page="ai"] .content {
+  max-width: none;
+}
+
+/* 音乐搜索使用自己的搜索表单与分页。 */
+#page[data-current-page="music-search"] .content {
+  max-width: 1200px;
+}
+
+/* 设置、关于、云同步等面板使用独立内容宽度。 */
+#page[data-current-page="settings"] .content,
+#page[data-current-page="about"] .content,
+#page[data-current-page="cloud"] .content,
+#page[data-current-page="video-backup"] .content,
+#page[data-current-page="backup-local"] .content,
+#page[data-current-page="backup-webdav"] .content,
+#page[data-current-page="backup-json"] .content,
+#page[data-current-page="feedback"] .content,
+#page[data-current-page="reward"] .content {
+  max-width: 1200px;
+}
+
+/* 隐藏状态下绝不能被 flex/grid 规则重新显示。 */
+#pagination[hidden],
+#filters[hidden],
+#page-count[hidden],
+#btn-login[hidden],
+#btn-sync-history[hidden],
+#btn-open-backup[hidden],
+#btn-filters[hidden] {
+  display: none !important;
+}
+
+/* 小屏幕下顶部操作区域换行。 */
+@media (max-width: 760px) {
+  #toolbar .toolbar-inner {
+    padding: 0.85rem 1rem;
+  }
+
+  #toolbar .toolbar-top {
+    align-items: flex-start;
+  }
+
+  #toolbar .toolbar-actions {
+    flex-wrap: wrap;
+  }
+
+  #filters .filters-row > #search {
+    flex-basis: 100%;
+  }
+}
