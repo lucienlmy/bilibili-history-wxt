@@ -38,6 +38,7 @@ const JsonBackup = () => {
   // ===== 手动导出/导入状态 =====
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isBatchImporting, setIsBatchImporting] = useState(false);
 
   useEffect(() => {
     const loadItems = async () => {
@@ -107,6 +108,97 @@ const JsonBackup = () => {
   };
 
   // ===== 手动导入数据 =====
+
+  type ImportResult = { merged: number; skipped: number; recognized: boolean };
+
+  // 解析并合并单个备份文件；合并策略与原有单文件导入完全一致
+  const importOneFile = async (data: any): Promise<ImportResult> => {
+    const deletedHistoryIds = await getDeletedHistoryIds();
+    let merged = 0;
+    let skipped = 0;
+
+    // 智能识别格式：支持任意数据项组合和旧版单独数组格式
+    if (Array.isArray(data)) {
+      // 兼容旧版单独数组格式（历史记录或音乐）
+      if (data.length > 0 && "view_at" in data[0]) {
+        const result = await smartMergeHistory(data as HistoryItem[], deletedHistoryIds);
+        return { ...result, recognized: true };
+      }
+      if (data.length > 0 && "bvid" in data[0] && "added_at" in data[0]) {
+        const result = await smartMergeLikedMusic(data as LikedMusic[]);
+        return { ...result, recognized: true };
+      }
+      return { merged, skipped, recognized: false };
+    }
+
+    if (!data || typeof data !== "object") {
+      return { merged, skipped, recognized: false };
+    }
+
+    let recognized = false;
+    const isStandaloneHistoryV2 =
+      data.schemaVersion === 2 &&
+      Array.isArray(data.events) &&
+      Array.isArray(data.tombstones);
+
+    if (isStandaloneHistoryV2) {
+      const result = await mergeHistoryV2Backup(data as HistoryV2Backup);
+      merged += result.merged;
+      skipped += result.skipped;
+      recognized = true;
+    }
+    if (Array.isArray(data.historyEvents)) {
+      const result = await mergeHistoryV2Backup({
+        schemaVersion: 2,
+        events: data.historyEvents,
+        tombstones: Array.isArray(data.historyTombstones) ? data.historyTombstones : [],
+        updatedAt: Date.now(),
+      });
+      merged += result.merged;
+      skipped += result.skipped;
+      recognized = true;
+    }
+    if (Array.isArray(data.history)) {
+      const result = await smartMergeHistory(data.history, deletedHistoryIds);
+      merged += result.merged;
+      skipped += result.skipped;
+      recognized = true;
+    }
+    if (Array.isArray(data.likedMusic)) {
+      const result = await smartMergeLikedMusic(data.likedMusic);
+      merged += result.merged;
+      skipped += result.skipped;
+      recognized = true;
+    }
+    if (Array.isArray(data.favFolders)) {
+      await importFavFolders(data.favFolders);
+      merged += data.favFolders.length;
+      recognized = true;
+    }
+    if (Array.isArray(data.favResources)) {
+      const result = await smartMergeFavResources(data.favResources);
+      merged += result.merged;
+      skipped += result.skipped;
+      recognized = true;
+    }
+    if (Array.isArray(data.subscribedCollections)) {
+      await importSubscribedCollections(data.subscribedCollections);
+      merged += data.subscribedCollections.length;
+      recognized = true;
+    }
+    if (Array.isArray(data.subscribedCollectionResources)) {
+      const result = await smartMergeSubscribedCollectionResources(
+        data.subscribedCollectionResources,
+      );
+      merged += result.merged;
+      skipped += result.skipped;
+      recognized = true;
+    }
+
+    return { merged, skipped, recognized };
+  };
+
+  // ===== 手动导入数据（原有单文件入口，逻辑保持不变） =====
 
   const handleImportAll = async () => {
     setIsImporting(true);
@@ -240,6 +332,75 @@ const JsonBackup = () => {
     }
   };
 
+  // ===== 手动导入数据（多选 JSON，逐个按同样策略合并） =====
+
+  const handleImportMultiple = async () => {
+    setIsBatchImporting(true);
+    try {
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = ".json";
+      fileInput.multiple = true;
+
+      fileInput.onchange = async (event) => {
+        const files = Array.from((event.target as HTMLInputElement).files ?? []);
+        if (files.length === 0) {
+          setIsBatchImporting(false);
+          return;
+        }
+
+        let successFiles = 0;
+        let totalMerged = 0;
+        let totalSkipped = 0;
+        const failedFiles: string[] = [];
+
+        try {
+          for (const file of files) {
+            try {
+              const data = JSON.parse(await file.text());
+              const result = await importOneFile(data);
+              if (result.recognized) {
+                successFiles++;
+                totalMerged += result.merged;
+                totalSkipped += result.skipped;
+              } else {
+                failedFiles.push(`${file.name}（无法识别的数据格式）`);
+              }
+            } catch (error) {
+              console.error(`解析导入文件失败: ${file.name}`, error);
+              failedFiles.push(`${file.name}（文件内容格式错误）`);
+            }
+          }
+
+          if (successFiles > 0) {
+            toast.success(
+              `批量导入完成！${successFiles} 个文件，合并 ${totalMerged} 条，跳过 ${totalSkipped} 条（本地更新）`,
+            );
+          }
+          if (failedFiles.length > 0) {
+            toast.error(`以下文件未导入：${failedFiles.join("；")}`);
+          }
+        } catch (error) {
+          console.error("批量导入数据失败:", error);
+          toast.error("导入失败，请重试");
+        } finally {
+          setIsBatchImporting(false);
+        }
+      };
+
+      // 用户取消选择文件时
+      fileInput.addEventListener("cancel", () => {
+        setIsBatchImporting(false);
+      });
+
+      fileInput.click();
+    } catch (error) {
+      console.error("批量导入数据失败:", error);
+      toast.error("导入失败，请重试");
+      setIsBatchImporting(false);
+    }
+  };
+
   return (
     <BackupPageLayout>
       <BackupPageHeader
@@ -341,9 +502,23 @@ const JsonBackup = () => {
               </button>
             </div>
 
+            <button
+              type="button"
+              onClick={handleImportMultiple}
+              disabled={isBatchImporting}
+              className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-line bg-wash px-4 text-sm font-medium text-ink-soft transition-colors hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50 dark:border-night-line dark:bg-night-line dark:text-night-muted dark:hover:bg-night-line/60"
+            >
+              {isBatchImporting ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileJson2 className="h-4 w-4" />
+              )}
+              {isBatchImporting ? "正在批量导入" : "批量导入 JSON（可多选，统一合并）"}
+            </button>
+
             <div className="mt-4 flex items-start gap-2 rounded-lg bg-wash px-3 py-2.5 text-xs leading-5 text-ink-soft dark:bg-night-line dark:text-night-muted">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              导出文件仅包含已勾选的数据；导入时会智能合并，并兼容旧版历史记录或音乐 JSON。
+              导出文件仅包含已勾选的数据；导入时会智能合并，并兼容旧版历史记录或音乐 JSON。批量导入用于一次恢复多份备份。
             </div>
           </div>
         </article>

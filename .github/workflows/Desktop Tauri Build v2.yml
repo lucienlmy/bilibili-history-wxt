@@ -1,4 +1,4 @@
-name: Bilibili Unlimited History Tauri Build
+name: Desktop Tauri Build V2
 
 # 与 desktop-tauri.yml 保持一致：仅手动触发
 on:

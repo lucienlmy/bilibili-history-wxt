@@ -1,0 +1,85 @@
+name: Browser Extension Build
+
+# 仅手动触发，避免频繁 push 自动构建
+on:
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - "pages/**"
+  #     - "components/**"
+  #     - "entrypoints/**"
+  #     - "utils/**"
+  #     - "wxt.config.ts"
+  #     - "package.json"
+  #     - ".github/workflows/extension-build.yml"
+  # pull_request:
+  #   branches:
+  #     - main
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    # 浏览器扩展与平台无关，单个 Linux runner 即可
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # 项目使用 pnpm；lockfile 里残留了已移除的 patchedDependencies，
+      # 因此不用 frozen-lockfile，避免 CI 因版本不一致直接失败
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Generate WXT types
+        run: pnpm exec wxt prepare
+
+      - name: Type check
+        run: pnpm run compile
+
+      # 产出 Chrome/Chromium 与 Firefox 两个 zip，均位于 .output/
+      - name: Build Chrome/Chromium extension
+        run: pnpm run zip
+
+      - name: Build Firefox extension
+        run: pnpm run zip:firefox
+
+      - name: List build outputs
+        if: always()
+        shell: bash
+        run: |
+          echo "== .output =="
+          ls -la .output 2>/dev/null | head -40 || true
+          echo "== zip files =="
+          find .output -maxdepth 1 -type f -name '*.zip' -printf '%f %s bytes\n' 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: bilibili-history-extension-${{ github.run_number }}
+          path: .output/*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload extension zips to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: extension-build-${{ github.run_number }}
+          name: Extension build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: true
+          make_latest: false
+          files: .output/*.zip
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
