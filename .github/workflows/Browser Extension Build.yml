@@ -104,6 +104,8 @@ jobs:
           path: .output/*.zip
           if-no-files-found: error
           retention-days: 14
+          # .output 是隐藏目录，upload-artifact 默认会跳过隐藏文件
+          include-hidden-files: true
 
       - name: Upload extension zips to release
         uses: softprops/action-gh-release@v2
