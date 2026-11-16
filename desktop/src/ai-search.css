@@ -1,0 +1,34 @@
+/* AI semantic search desktop page */
+.ai-workspace { display:grid; grid-template-columns:minmax(190px,240px) minmax(0,1fr); gap:1rem; align-items:start; }
+.ai-history { border:1px solid var(--line); border-radius:.85rem; background:var(--paper); overflow:hidden; }
+.ai-history-head { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.75rem; border-bottom:1px solid var(--line); }
+.ai-history-head strong { font-size:.9rem; }
+.ai-history-list { max-height:70vh; overflow:auto; padding:.5rem; }
+.ai-history-item { display:flex; align-items:flex-start; gap:.25rem; border-radius:.55rem; padding:.25rem; }
+.ai-history-item:hover { background:var(--wash); }
+.ai-history-load { min-width:0; flex:1; border:0; background:transparent; color:var(--ink); text-align:left; cursor:pointer; padding:.35rem; }
+.ai-history-load strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.8rem; font-weight:600; }
+.ai-history-load small { display:block; margin-top:.2rem; color:var(--ink-muted); font-size:.68rem; }
+.ai-history-delete { border:0; background:transparent; color:var(--ink-muted); cursor:pointer; padding:.25rem .4rem; border-radius:.35rem; }
+.ai-history-delete:hover { color:#dc2626; background:#fef2f2; }
+.ai-main { min-width:0; }
+.ai-main > .panel-card { padding:1.1rem; }
+.ai-warning { margin:.65rem 0 0; color:#dc2626; font-size:.8rem; }
+.ai-result-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; margin-top:1rem; }
+.ai-result-grid .panel-card { min-width:0; }
+.ai-result-grid h4 { margin:0 0 .65rem; font-size:.9rem; }
+.ai-output { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.65; font-size:.86rem; max-height:32rem; overflow:auto; color:var(--ink-soft); }
+.ai-reasoning { background:color-mix(in srgb,var(--brand-soft) 45%,var(--paper)); }
+.ai-answer { background:var(--paper); }
+.ai-error { margin-top:.8rem; border-color:#fecaca; background:#fef2f2; color:#b91c1c; }
+.ai-error p { margin:.4rem 0 0; white-space:pre-wrap; overflow-wrap:anywhere; font-size:.85rem; }
+.ai-config-modal { width:min(100%,34rem); }
+@media(max-width:900px) {
+  .ai-workspace { grid-template-columns:1fr; }
+  .ai-history-list { max-height:12rem; }
+  .ai-result-grid { grid-template-columns:1fr; }
+}
+@media(max-width:560px) {
+  .ai-search { align-items:stretch; flex-direction:column; }
+  .ai-search .btn { min-height:2.5rem; }
+}

@@ -1,0 +1,19 @@
+{
+  "extends": "../.wxt/tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": [
+    "../.wxt/wxt.d.ts",
+    "src/**/*",
+    "../pages/**/*",
+    "../components/**/*",
+    "../utils/**/*",
+    "../services/**/*",
+    "../types/**/*",
+    "../assets/**/*",
+    "../entrypoints/my-history/**/*"
+  ]
+}

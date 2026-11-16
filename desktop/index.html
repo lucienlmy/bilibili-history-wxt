@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bilibili History</title>
+
+    <link rel="stylesheet" href="./src/styles.css" />
+    <link rel="stylesheet" href="./src/col-sync.css" />
+    <link rel="stylesheet" href="./src/nav-sync.css" />
+    <link rel="stylesheet" href="./src/secondary.css" />
+    <link rel="stylesheet" href="./src/ai-search.css" />
+
+    <!-- 页面独立布局控制 -->
+    <link rel="stylesheet" href="./src/page-layout.css" />
+  </head>
+
+  <body>
+    <div id="app" class="layout">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <button type="button" class="brand" id="brand-home" title="返回历史记录">
+            <span class="brand-logo">
+              <span class="brand-logo-gloss"></span>
+              <span class="brand-letter">B</span>
+            </span>
+
+            <span class="brand-expand-ico" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 12h16" />
+                <path d="M12 4v16" />
+              </svg>
+            </span>
+
+            <span class="brand-text">无限历史记录</span>
+          </button>
+
+          <button
+            type="button"
+            class="icon-btn"
+            id="btn-collapse"
+            title="收起侧边栏"
+            aria-label="收起侧边栏"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 19l-7-7 7-7" />
+              <path d="M18 19l-7-7 7-7" />
+            </svg>
+          </button>
+        </div>
+
+        <nav class="sidebar-nav" id="nav"></nav>
+
+        <div class="sidebar-foot">
+          <p class="file-meta" id="file-meta">尚未加载备份</p>
+
+          <div class="foot-row">
+            <span class="ver">v0.1.0</span>
+
+            <button
+              type="button"
+              class="icon-btn"
+              id="btn-theme"
+              title="切换主题"
+              aria-label="切换主题"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="theme-icon">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <div class="main-wrap" id="main-wrap">
+        <main class="page" id="page">
+          <header class="toolbar sticky" id="toolbar">
+            <div class="toolbar-inner">
+              <div class="toolbar-top">
+                <div class="toolbar-title">
+                  <div class="title-row">
+                    <h1 id="page-title">历史记录</h1>
+                    <span class="count" id="page-count">0 个内容</span>
+                  </div>
+
+                  <p class="desc" id="page-desc">
+                    搜索、筛选并浏览本地备份中的观看记录
+                  </p>
+                </div>
+
+                <div class="toolbar-actions">
+                  <button type="button" class="btn" id="btn-login">登录</button>
+                  <button type="button" class="btn primary" id="btn-sync-history">同步记录</button>
+                  <button type="button" class="btn" id="btn-open-backup">打开备份</button>
+
+                  <button type="button" class="btn icon" id="btn-filters" title="筛选">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="filters" id="filters">
+                <div class="filters-row">
+                  <input type="search" id="search" placeholder="搜索标题 / UP / BV" />
+
+                  <select id="search-kind">
+                    <option value="all">全部字段</option>
+                    <option value="title">标题</option>
+                    <option value="up">UP 主</option>
+                    <option value="bvid">BV 号</option>
+                  </select>
+
+                  <select id="type-filter">
+                    <option value="all">全部类型</option>
+                    <option value="archive">视频</option>
+                    <option value="pgc">番剧</option>
+                    <option value="live">直播</option>
+                    <option value="article">专栏</option>
+                    <option value="article-list">文集</option>
+                    <option value="cheese">课堂</option>
+                  </select>
+
+                  <select id="sort">
+                    <option value="time-desc">时间从新到旧</option>
+                    <option value="time-asc">时间从旧到新</option>
+                    <option value="title">标题</option>
+                  </select>
+
+                  <select id="cols">
+                    <option value="auto">自动列数</option>
+                    <option value="3">3 列</option>
+                    <option value="4" selected>4 列</option>
+                    <option value="5">5 列</option>
+                  </select>
+
+                  <input type="date" id="date-start" />
+                  <input type="date" id="date-end" />
+
+                  <button type="button" class="btn" id="btn-clear-filters" hidden>
+                    清除筛选
+                  </button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <div class="content" id="content"></div>
+
+          <div class="pagination" id="pagination" hidden></div>
+
+          <button
+            type="button"
+            class="scroll-top"
+            id="scroll-top"
+            hidden
+            title="回到顶部"
+          >↑</button>
+        </main>
+      </div>
+    </div>
+
+    <div class="modal-mask" id="login-modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
+        <div class="modal-head">
+          <h2 id="login-title">B 站登录凭证</h2>
+          <button type="button" class="icon-btn" id="login-close" aria-label="关闭">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <p class="hint">请粘贴 SESSDATA 与 bili_jct（仅保存在本机）。</p>
+
+          <label class="field">
+            <span>SESSDATA</span>
+            <textarea id="login-sessdata" rows="3" spellcheck="false"></textarea>
+          </label>
+
+          <label class="field">
+            <span>bili_jct</span>
+            <input id="login-bili-jct" type="text" spellcheck="false" autocomplete="off" />
+          </label>
+
+          <p class="hint" id="login-status">当前：未登录</p>
+        </div>
+
+        <div class="modal-foot">
+          <button type="button" class="btn" id="login-logout">清除登录</button>
+          <button type="button" class="btn" id="login-cancel">取消</button>
+          <button type="button" class="btn primary" id="login-save">保存并验证</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-mask" id="sync-modal" hidden>
+      <div class="modal sync-modal" role="dialog" aria-modal="true" aria-labelledby="sync-title">
+        <div class="modal-head">
+          <h2 id="sync-title">同步历史记录</h2>
+          <button type="button" class="icon-btn" id="sync-close" aria-label="关闭">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <p class="hint" id="sync-last">尚未同步过</p>
+
+          <div class="sync-mode-row">
+            <label><input type="radio" name="sync-mode" value="incremental" checked /> 增量同步</label>
+            <label><input type="radio" name="sync-mode" value="full" /> 全量同步</label>
+          </div>
+
+          <div class="sync-progress" id="sync-progress" hidden>
+            <div class="sync-progress-head">正在同步…</div>
+            <div class="sync-progress-bar"><i></i></div>
+          </div>
+
+          <div class="sync-result" id="sync-result" hidden></div>
+        </div>
+
+        <div class="modal-foot">
+          <button type="button" class="btn" id="sync-cancel">关闭</button>
+          <button type="button" class="btn primary" id="sync-start">开始同步</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主页面 -->
+    <script type="module" src="./src/main.js"></script>
+
+    <!-- 页面布局控制器 -->
+    <script type="module" src="./src/page-layout.js"></script>
+
+    <!-- 其他页面 -->
+    <script type="module" src="./src/secondary.js"></script>
+    <script type="module" src="./src/ai-search.js"></script>
+
+    <!-- 同步与备份 -->
+    <script type="module" src="./src/sync.js"></script>
+    <script type="module" src="./src/local-cache.js"></script>
+    <script type="module" src="./src/align-cards.js"></script>
+    <script type="module" src="./src/fav-sync.js"></script>
+    <script type="module" src="./src/music-player.js"></script>
+    <script type="module" src="./src/collection-sync.js"></script>
+  </body>
+</html>

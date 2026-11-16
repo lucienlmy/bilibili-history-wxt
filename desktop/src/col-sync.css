@@ -1,0 +1,24 @@
+/* Collection sync buttons */
+.music-list-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.col-sync-all, .col-sync-one {
+  flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--brand) 25%, var(--line));
+  background: color-mix(in srgb, var(--paper) 80%, transparent); color: var(--brand-strong);
+  border-radius: 0.375rem; padding: 0.25rem 0.65rem; font-size: 0.75rem; font-weight: 500;
+  cursor: pointer;
+}
+.col-sync-all:hover, .col-sync-one:hover {
+  border-color: var(--brand); background: var(--brand-soft);
+}
+.col-sync-all:disabled, .col-sync-one:disabled { opacity: 0.55; cursor: not-allowed; }
+.collection-detail-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.collection-back {
+  border: 0; background: transparent; color: var(--brand-strong);
+  font-size: 0.875rem; font-weight: 500; cursor: pointer; padding: 0.25rem 0;
+}
+.collection-back:hover { text-decoration: underline; }
