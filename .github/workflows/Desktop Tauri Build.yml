@@ -1,22 +1,21 @@
 name: Desktop Tauri Build
 
-# 仅手动触发，避免频繁 push 自动构建
+# 手动触发 + Joy 分支 push/PR 触发；paths 限定为 desktop 项目，
+# 避免改扩展或其他项目时误触发三平台构建
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - desktop-tauri
-  #     - main
-  #   paths:
-  #     - "desktop/**"
-  #     - ".github/workflows/desktop-tauri.yml"
-  # pull_request:
-  #   branches:
-  #     - desktop-tauri
-  #     - main
-  #   paths:
-  #     - "desktop/**"
-  #     - ".github/workflows/desktop-tauri.yml"
+  push:
+    branches:
+      - Joy
+    paths:
+      - "desktop/**"
+      - ".github/workflows/Desktop Tauri Build.yml"
+  pull_request:
+    branches:
+      - Joy
+    paths:
+      - "desktop/**"
+      - ".github/workflows/Desktop Tauri Build.yml"
 
 jobs:
   build:

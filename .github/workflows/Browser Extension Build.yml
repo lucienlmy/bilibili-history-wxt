@@ -1,22 +1,57 @@
 name: Browser Extension Build
 
-# 仅手动触发，避免频繁 push 自动构建
+# 手动触发 + Joy 分支 push/PR 触发；paths 只覆盖扩展主项目，
+# 两个桌面项目（desktop、desktop-v2）由各自的 workflow 处理，避免互相误触发
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - main
-  #   paths:
-  #     - "pages/**"
-  #     - "components/**"
-  #     - "entrypoints/**"
-  #     - "utils/**"
-  #     - "wxt.config.ts"
-  #     - "package.json"
-  #     - ".github/workflows/extension-build.yml"
-  # pull_request:
-  #   branches:
-  #     - main
+  push:
+    branches:
+      - Joy
+    paths:
+      - "assets/**"
+      - "components/**"
+      - "entrypoints/**"
+      - "pages/**"
+      - "public/**"
+      - "services/**"
+      - "types/**"
+      - "utils/**"
+      - "patches/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.json"
+      - "wxt.config.ts"
+      - "tailwind.config.js"
+      - "postcss.config.js"
+      - "web-ext.config.ts"
+      - ".env.development"
+      - ".env.production"
+      - ".github/workflows/Browser Extension Build.yml"
+  pull_request:
+    branches:
+      - Joy
+    paths:
+      - "assets/**"
+      - "components/**"
+      - "entrypoints/**"
+      - "pages/**"
+      - "public/**"
+      - "services/**"
+      - "types/**"
+      - "utils/**"
+      - "patches/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.json"
+      - "wxt.config.ts"
+      - "tailwind.config.js"
+      - "postcss.config.js"
+      - "web-ext.config.ts"
+      - ".env.development"
+      - ".env.production"
+      - ".github/workflows/Browser Extension Build.yml"
 
 jobs:
   build:

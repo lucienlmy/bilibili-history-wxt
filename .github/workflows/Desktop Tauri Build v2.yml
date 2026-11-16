@@ -1,8 +1,21 @@
 name: Desktop Tauri Build V2
 
-# 与 desktop-tauri.yml 保持一致：仅手动触发
+# 手动触发 + Joy 分支 push/PR 触发；paths 限定为 desktop-v2 项目，
+# 避免改扩展或其他项目时误触发三平台构建
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - Joy
+    paths:
+      - "desktop-v2/**"
+      - ".github/workflows/Desktop Tauri Build v2.yml"
+  pull_request:
+    branches:
+      - Joy
+    paths:
+      - "desktop-v2/**"
+      - ".github/workflows/Desktop Tauri Build v2.yml"
 
 jobs:
   build:
@@ -34,14 +47,14 @@ jobs:
           python-version: "3.12"
 
       - name: Generate icons
-        working-directory: bilibili-unlimited-history
+        working-directory: desktop-v2
         run: python scripts/generate_icons.py
 
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: bilibili-unlimited-history/src-tauri -> target
+          workspaces: desktop-v2/src-tauri -> target
 
       # 新桌面版直接复用扩展的 React 源码，需要先装好仓库根依赖，
       # 让 pages/components/utils 里的 react、lucide-react 等能被解析
@@ -49,7 +62,7 @@ jobs:
         run: npm install --no-package-lock
 
       - name: Install frontend dependencies
-        working-directory: bilibili-unlimited-history
+        working-directory: desktop-v2
         run: npm install --no-package-lock
 
       - name: Build Tauri app
@@ -57,7 +70,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: bilibili-unlimited-history
+          projectPath: desktop-v2
           tauriScript: npm run tauri --
 
       - name: List build outputs
@@ -65,22 +78,22 @@ jobs:
         shell: bash
         run: |
           echo "== target/release =="
-          ls -la bilibili-unlimited-history/src-tauri/target/release 2>/dev/null | head -40 || true
+          ls -la desktop-v2/src-tauri/target/release 2>/dev/null | head -40 || true
           echo "== bundle =="
-          find bilibili-unlimited-history/src-tauri/target/release/bundle -type f 2>/dev/null | head -50 || true
+          find desktop-v2/src-tauri/target/release/bundle -type f 2>/dev/null | head -50 || true
 
       - uses: actions/upload-artifact@v6
         with:
           name: bilibili-unlimited-history-${{ matrix.platform }}
           path: |
-            bilibili-unlimited-history/src-tauri/target/release/bundle/dmg/**
-            bilibili-unlimited-history/src-tauri/target/release/bundle/macos/**
-            bilibili-unlimited-history/src-tauri/target/release/bundle/deb/**
-            bilibili-unlimited-history/src-tauri/target/release/bundle/appimage/**
-            bilibili-unlimited-history/src-tauri/target/release/bundle/rpm/**
-            bilibili-unlimited-history/src-tauri/target/release/bundle/msi/**
-            bilibili-unlimited-history/src-tauri/target/release/bundle/nsis/**
-            bilibili-unlimited-history/src-tauri/target/release/*.exe
+            desktop-v2/src-tauri/target/release/bundle/dmg/**
+            desktop-v2/src-tauri/target/release/bundle/macos/**
+            desktop-v2/src-tauri/target/release/bundle/deb/**
+            desktop-v2/src-tauri/target/release/bundle/appimage/**
+            desktop-v2/src-tauri/target/release/bundle/rpm/**
+            desktop-v2/src-tauri/target/release/bundle/msi/**
+            desktop-v2/src-tauri/target/release/bundle/nsis/**
+            desktop-v2/src-tauri/target/release/*.exe
           if-no-files-found: warn
           retention-days: 14
 
@@ -95,7 +108,7 @@ jobs:
           draft: false
           prerelease: true
           make_latest: false
-          files: bilibili-unlimited-history/src-tauri/target/release/bilibili-unlimited-history.exe
+          files: desktop-v2/src-tauri/target/release/bilibili-unlimited-history.exe
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
