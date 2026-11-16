@@ -571,16 +571,224 @@ function bootSecondary() {
   };
 
   R["music-search"] = function () {
-    const { contentEl, pageCount, paginationEl } = g();
+    const { contentEl, pageCount, paginationEl, escapeHtml } = g();
     paginationEl.hidden = true;
     pageCount.textContent = "";
+
+    let currentKeyword = "";
+    let currentPage = 1;
+    let busy = false;
+    let lastResults = [];
+
+    const safe = (value) => escapeHtml(String(value ?? ""));
+    const normalizeCover = (value) => {
+      if (!value) return "";
+      if (value.startsWith("//")) return "https:" + value;
+      return value;
+    };
+
     contentEl.innerHTML = `
-  ${pageShellNote("在线搜歌为扩展能力。可在「我喜欢的音乐」查看备份列表。")}
-  <div class="ai-search">
-    <input type="search" placeholder="搜索歌曲 / BV 号…" disabled />
-    <button type="button" class="btn primary" disabled>搜索</button>
-  </div>
-  <div class="panel-card muted" style="margin-top:1rem"><div class="empty-inline">无在线搜索结果</div></div>`;
+      <div class="panel-card">
+        <div class="panel-head">
+          <h3>音乐搜索</h3>
+          <span class="chip ok">在线搜索</span>
+        </div>
+        <p class="panel-desc">搜索 B 站音乐相关视频，并可直接使用桌面播放器播放。</p>
+        <form id="music-search-form" class="ai-search">
+          <input
+            id="music-search-input"
+            type="search"
+            placeholder="输入歌曲名称、歌手或 BV 号…"
+            autocomplete="off"
+          />
+          <button type="submit" class="btn primary" id="music-search-submit">搜索</button>
+        </form>
+        <p class="panel-desc" id="music-search-status" role="status" style="margin-top:.75rem"></p>
+      </div>
+
+      <div id="music-search-results" class="panel-card" style="margin-top:1rem">
+        <div class="empty-inline">输入关键词开始搜索</div>
+      </div>
+
+      <div class="panel-actions" id="music-search-pagination" style="justify-content:center;margin-top:1rem;display:none">
+        <button type="button" class="btn" id="music-search-prev">上一页</button>
+        <span class="chip" id="music-search-page">第 1 页</span>
+        <button type="button" class="btn" id="music-search-next">下一页</button>
+      </div>
+    `;
+
+    const input = document.getElementById("music-search-input");
+    const form = document.getElementById("music-search-form");
+    const submit = document.getElementById("music-search-submit");
+    const status = document.getElementById("music-search-status");
+    const resultsEl = document.getElementById("music-search-results");
+    const pagination = document.getElementById("music-search-pagination");
+    const prevButton = document.getElementById("music-search-prev");
+    const nextButton = document.getElementById("music-search-next");
+    const pageLabel = document.getElementById("music-search-page");
+
+    const setStatus = (message, isError = false) => {
+      status.textContent = message || "";
+      status.style.color = isError ? "#dc2626" : "var(--ink-muted)";
+    };
+
+    const formatPlayCount = (value) => {
+      const count = Number(value) || 0;
+      if (count >= 10000) return (count / 10000).toFixed(1) + " 万";
+      return String(count);
+    };
+
+    const renderResults = (items) => {
+      lastResults = Array.isArray(items) ? items : [];
+
+      if (!lastResults.length) {
+        resultsEl.innerHTML = `<div class="empty-inline">没有找到相关结果，试试其他关键词。</div>`;
+        pagination.style.display = "none";
+        return;
+      }
+
+      resultsEl.innerHTML = `
+        <div class="panel-head">
+          <h3>搜索结果</h3>
+          <span class="chip">${lastResults.length} 条</span>
+        </div>
+        <div class="music-search-list">
+          ${lastResults.map((item, index) => {
+            const cover = normalizeCover(item.cover || "");
+            const title = safe(item.title || "未命名");
+            const author = safe(item.author || "未知作者");
+            const duration = safe(item.duration || "");
+            const bvid = safe(item.bvid || "");
+            const playCount = formatPlayCount(item.play);
+
+            return `
+              <div class="vb-row music-search-row">
+                <div class="music-search-cover">
+                  ${cover
+                    ? `<img src="${safe(cover)}" alt="" loading="lazy" />`
+                    : `<div class="music-search-cover-empty">♫</div>`}
+                </div>
+                <div class="vb-row-main music-search-info">
+                  <strong title="${title}">${title}</strong>
+                  <span>${author}${duration ? " · " + duration : ""} · 播放 ${playCount}</span>
+                  <span class="vb-bvid">${bvid}</span>
+                </div>
+                <div class="vb-row-actions">
+                  <button type="button" class="btn primary" data-music-play="${index}">播放</button>
+                  <button type="button" class="btn soft" data-music-open="${index}">打开视频</button>
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `;
+
+      pagination.style.display = "flex";
+      pageLabel.textContent = `第 ${currentPage} 页`;
+      prevButton.disabled = currentPage <= 1;
+      nextButton.disabled = lastResults.length < 20;
+
+      resultsEl.querySelectorAll("[data-music-play]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const index = Number(button.getAttribute("data-music-play"));
+          const item = lastResults[index];
+          if (!item) return;
+
+          const player = globalThis.__bili;
+          if (typeof player?.playMusic !== "function") {
+            setStatus("播放器尚未初始化，请稍后重试。", true);
+            return;
+          }
+
+          try {
+            const track = {
+              ...item,
+              id: item.bvid,
+              bvid: item.bvid,
+              title: item.title || "未命名",
+              author: item.author || "",
+              cover: normalizeCover(item.cover || ""),
+            };
+
+            await player.playMusic(track, lastResults, index);
+            setStatus("正在播放：" + (item.title || item.bvid));
+          } catch (error) {
+            setStatus("播放失败：" + (error?.message || error), true);
+          }
+        });
+      });
+
+      resultsEl.querySelectorAll("[data-music-open]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const index = Number(button.getAttribute("data-music-open"));
+          const item = lastResults[index];
+          if (!item?.bvid) return;
+
+          try {
+            const { invoke } = await import("@tauri-apps/api/core");
+            await invoke("open_external", {
+              url: "https://www.bilibili.com/video/" + encodeURIComponent(item.bvid),
+            });
+          } catch (error) {
+            setStatus("打开视频失败：" + (error?.message || error), true);
+          }
+        });
+      });
+    };
+
+    const search = async (page = 1) => {
+      const keyword = input.value.trim();
+      if (!keyword) {
+        setStatus("请输入歌曲名称或关键词。", true);
+        input.focus();
+        return;
+      }
+      if (busy) return;
+
+      busy = true;
+      currentKeyword = keyword;
+      currentPage = Math.max(1, Number(page) || 1);
+      submit.disabled = true;
+      submit.textContent = "搜索中…";
+      prevButton.disabled = true;
+      nextButton.disabled = true;
+      setStatus("正在搜索，请稍候…");
+      resultsEl.innerHTML = `<div class="empty-inline">正在加载搜索结果…</div>`;
+
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const items = await invoke("fetch_music_search_page", {
+          keyword: currentKeyword,
+          page: currentPage,
+        });
+
+        renderResults(items);
+        setStatus(`搜索完成：第 ${currentPage} 页`);
+      } catch (error) {
+        resultsEl.innerHTML = `<div class="empty-inline">搜索失败，请检查网络或稍后重试。</div>`;
+        pagination.style.display = "none";
+        setStatus("搜索失败：" + (error?.message || error), true);
+      } finally {
+        busy = false;
+        submit.disabled = false;
+        submit.textContent = "搜索";
+      }
+    };
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void search(1);
+    });
+
+    prevButton.addEventListener("click", () => {
+      if (currentPage > 1) void search(currentPage - 1);
+    });
+
+    nextButton.addEventListener("click", () => {
+      if (lastResults.length >= 20) void search(currentPage + 1);
+    });
+
+    input.focus();
   };
 
   console.info("[desktop] secondary pages registered", Object.keys(R));

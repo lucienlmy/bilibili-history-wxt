@@ -1,3 +1,5 @@
+mod music_search;
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -544,8 +546,7 @@ fn fetch_favorite_folder_page(
     media_id: i64,
     pn: Option<i64>,
 ) -> Result<FavPageResult, String> {
-    let sess = read_session(&app)?;
-    let sessdata = sess
+    let sess = read_session(&app)?
         .sessdata
         .filter(|x| !x.is_empty())
         .ok_or_else(|| "未登录，请先配置 SESSDATA".to_string())?;
@@ -554,7 +555,7 @@ fn fetch_favorite_folder_page(
         "https://api.bilibili.com/x/v3/fav/resource/list?media_id={}&pn={}&ps=20",
         media_id, pn
     );
-    let body = bili_get(&sessdata, &url)?;
+    let body = bili_get(&sess, &url)?;
     let data = body.get("data").cloned().unwrap_or(serde_json::Value::Null);
     let medias = data
         .get("medias")
@@ -609,14 +610,13 @@ fn fetch_audio_url(app: AppHandle, bvid: String) -> Result<String, String> {
     if bvid.is_empty() {
         return Err("bvid 不能为空".into());
     }
-    let sess = read_session(&app)?;
-    let sessdata = sess
+    let sess = read_session(&app)?
         .sessdata
         .filter(|x| !x.is_empty())
         .ok_or_else(|| "未登录，请先配置 SESSDATA".to_string())?;
 
     let view_url = format!("https://api.bilibili.com/x/web-interface/view?bvid={}", bvid);
-    let view_body = bili_get(&sessdata, &view_url)?;
+    let view_body = bili_get(&sess, &view_url)?;
     let data = view_body.get("data").cloned().unwrap_or(serde_json::Value::Null);
     let cid = data
         .get("cid")
@@ -634,7 +634,7 @@ fn fetch_audio_url(app: AppHandle, bvid: String) -> Result<String, String> {
         "https://api.bilibili.com/x/player/playurl?bvid={}&cid={}&fnval=16&fourk=1",
         bvid, cid
     );
-    let play_body = bili_get(&sessdata, &play_url)?;
+    let play_body = bili_get(&sess, &play_url)?;
     let play_data = play_body.get("data").cloned().unwrap_or(serde_json::Value::Null);
     let dash = play_data.get("dash").cloned().unwrap_or(serde_json::Value::Null);
     let audio = dash
@@ -673,7 +673,8 @@ pub fn run() {
             fetch_favorite_folder_page,
             fetch_collected_folders_page,
             fetch_season_page,
-            fetch_audio_url
+            fetch_audio_url,
+            music_search::fetch_music_search_page
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
