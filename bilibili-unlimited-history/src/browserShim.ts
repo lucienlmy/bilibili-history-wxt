@@ -303,6 +303,10 @@ const downloads = {
   },
 };
 
+// 扩展里既有 browser.storage.onChanged 也有 browser.storage.local.onChanged，
+// 两者都指向同一事件总线（Favorites.tsx 用的是 storage.local.onChanged）
+Object.assign(storageLocal, { onChanged: storageChanged });
+
 export const desktopBrowser = {
   storage: {
     local: storageLocal,
