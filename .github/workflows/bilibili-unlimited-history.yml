@@ -1,0 +1,101 @@
+name: Bilibili Unlimited History Tauri Build
+
+# 与 desktop-tauri.yml 保持一致：仅手动触发
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+          - platform: ubuntu-22.04
+          - platform: windows-latest
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Generate icons
+        working-directory: bilibili-unlimited-history
+        run: python scripts/generate_icons.py
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: bilibili-unlimited-history/src-tauri -> target
+
+      # 新桌面版直接复用扩展的 React 源码，需要先装好仓库根依赖，
+      # 让 pages/components/utils 里的 react、lucide-react 等能被解析
+      - name: Install root dependencies
+        run: npm install --no-package-lock
+
+      - name: Install frontend dependencies
+        working-directory: bilibili-unlimited-history
+        run: npm install --no-package-lock
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: bilibili-unlimited-history
+          tauriScript: npm run tauri --
+
+      - name: List build outputs
+        if: always()
+        shell: bash
+        run: |
+          echo "== target/release =="
+          ls -la bilibili-unlimited-history/src-tauri/target/release 2>/dev/null | head -40 || true
+          echo "== bundle =="
+          find bilibili-unlimited-history/src-tauri/target/release/bundle -type f 2>/dev/null | head -50 || true
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: bilibili-unlimited-history-${{ matrix.platform }}
+          path: |
+            bilibili-unlimited-history/src-tauri/target/release/bundle/dmg/**
+            bilibili-unlimited-history/src-tauri/target/release/bundle/macos/**
+            bilibili-unlimited-history/src-tauri/target/release/bundle/deb/**
+            bilibili-unlimited-history/src-tauri/target/release/bundle/appimage/**
+            bilibili-unlimited-history/src-tauri/target/release/bundle/rpm/**
+            bilibili-unlimited-history/src-tauri/target/release/bundle/msi/**
+            bilibili-unlimited-history/src-tauri/target/release/bundle/nsis/**
+            bilibili-unlimited-history/src-tauri/target/release/*.exe
+          if-no-files-found: warn
+          retention-days: 14
+
+      # 上传独立 Windows EXE；tag 与原桌面版区分，避免互相覆盖
+      - name: Upload standalone Windows EXE
+        if: matrix.platform == 'windows-latest'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: bilibili-unlimited-history-build-${{ github.run_number }}
+          name: Bilibili Unlimited History build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: true
+          make_latest: false
+          files: bilibili-unlimited-history/src-tauri/target/release/bilibili-unlimited-history.exe
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,74 @@
+/* 桌面版外壳样式。扩展 UI 自身的 Tailwind 样式由 entrypoints/my-history/style.css 提供
+   （在扩展 App 内部通过 import 加载），这里只补充工具条与布局。 */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.desktop-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.desktop-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #1f2023;
+  color: #e9e9ea;
+  font-size: 13px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.desktop-toolbar__brand {
+  font-weight: 600;
+  color: #fb7299;
+}
+
+.desktop-toolbar__spacer {
+  flex: 1;
+}
+
+.desktop-toolbar__login {
+  color: #9a9da0;
+}
+
+.desktop-toolbar button {
+  border: 1px solid #3a3c40;
+  background: #2d2f33;
+  color: #e9e9ea;
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.desktop-toolbar button:hover:not(:disabled) {
+  background: #3a3c40;
+}
+
+.desktop-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.desktop-toolbar__msg {
+  color: #fb7299;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
