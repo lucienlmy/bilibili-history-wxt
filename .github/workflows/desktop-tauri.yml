@@ -78,6 +78,7 @@ jobs:
           echo "== bundle =="
           find desktop/src-tauri/target/release/bundle -type f 2>/dev/null | head -50 || true
 
+      # 原有构建文件上传方式保持不变，EXE 仍包含在原有上传内容中
       - uses: actions/upload-artifact@v6
         with:
           name: bili-desktop-${{ matrix.platform }}
@@ -93,12 +94,18 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      # Windows 独立 EXE 单独上传，便于直接下载运行
+      # 额外上传原始 EXE，不影响原有 ZIP
       - name: Upload standalone Windows EXE
         if: matrix.platform == 'windows-latest'
-        uses: actions/upload-artifact@v6
+        uses: softprops/action-gh-release@v2
         with:
-          name: bili-desktop-windows-standalone-exe
-          path: desktop/src-tauri/target/release/bilibili-history-desktop.exe
-          if-no-files-found: error
-          retention-days: 14
+          tag_name: desktop-build-${{ github.run_number }}
+          name: Desktop build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: true
+          make_latest: false
+          files: desktop/src-tauri/target/release/bilibili-history-desktop.exe
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
