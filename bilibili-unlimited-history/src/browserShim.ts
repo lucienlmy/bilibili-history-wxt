@@ -196,8 +196,12 @@ const routeMessage = async (message: any): Promise<any> => {
       await syncSubscribedCollections();
       return { success: true, message: "订阅合集同步完成" };
     }
-    case "runLocalHistoryBackup":
-      return { success: true, message: "桌面版请使用顶部工具条的导入/备份功能" };
+    case "runLocalHistoryBackup": {
+      // 直接复用扩展的备份逻辑；它依赖的 FileSystemDirectoryHandle 由桌面版
+      // localBackupHandle（Vite 重定向）+ showDirectoryPicker polyfill 提供
+      const { runLocalHistoryBackup } = await import("../../utils/localHistoryBackup");
+      return await runLocalHistoryBackup(Boolean(message.allowEmpty));
+    }
     default:
       return undefined;
   }
@@ -350,6 +354,40 @@ try {
 export const broadcastProgress = (message: any) => {
   runtimeOnMessage.emit(message, { id: "desktop" }, () => {});
 };
+
+/** 拦截 window.open：桌面端用 opener 插件打开系统浏览器，而不是在 WebView 里开新窗口。
+ *  这样登录页、文档、定价页、用户主页等外链都能正常打开。 */
+try {
+  const originalOpen = window.open.bind(window);
+  window.open = ((url?: string | URL, target?: string, features?: string) => {
+    const href = url ? String(url) : "";
+    if (href && /^https?:\/\//i.test(href)) {
+      invoke("open_external", { url: href }).catch((error) => {
+        console.warn("[browserShim] window.open 外链打开失败，回退原行为", error);
+        originalOpen(href, target, features);
+      });
+      return null;
+    }
+    return originalOpen(href as any, target, features);
+  }) as typeof window.open;
+} catch {
+  // 覆盖失败则保留原行为
+}
+
+/** polyfill showDirectoryPicker：让本地目录备份页认为环境支持 File System Access API。 */
+try {
+  if (!("showDirectoryPicker" in window)) {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => {
+        const { pickDesktopDirectory } = await import("./desktop/directoryHandle");
+        return pickDesktopDirectory();
+      },
+    });
+  }
+} catch {
+  // 覆盖失败则本地目录备份页会显示不支持提示（降级，不崩）
+}
 
 /** 安装全局 browser（在模块副作用阶段执行，import 本文件即可）。 */
 const globalScope = globalThis as any;

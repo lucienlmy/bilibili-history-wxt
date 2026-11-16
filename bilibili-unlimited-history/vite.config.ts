@@ -4,8 +4,23 @@ import path from "node:path";
 
 const repoRoot = path.resolve(__dirname, "..");
 
+/** 把扩展的 localBackupHandle 重定向到桌面版（FileSystemDirectoryHandle 无法在 WebView 使用）。 */
+const desktopLocalBackupPlugin = {
+  name: "desktop-local-backup-handle",
+  enforce: "pre" as const,
+  resolveId(source: string, importer: string | undefined) {
+    if (!importer) return null;
+    // 只匹配以 localBackupHandle 结尾的相对导入，避免误伤其它模块
+    const normalized = source.replace(/\\/g, "/");
+    if (/(^|\/)localBackupHandle$/.test(normalized)) {
+      return path.resolve(__dirname, "src/desktop/localBackupHandle.ts");
+    }
+    return null;
+  },
+};
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [desktopLocalBackupPlugin, react()],
   resolve: {
     // 扩展源码用 "@/..." 指向仓库根，桌面版沿用同一套别名以便原样复用 UI
     alias: {
