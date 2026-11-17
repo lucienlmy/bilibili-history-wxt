@@ -381,6 +381,11 @@ export const History: React.FC = () => {
                 <span className="whitespace-nowrap text-sm tabular-nums text-ink-muted dark:text-night-muted">
                   {totalHistoryCount} {displayMode === "visit" ? "次观看" : "个内容"}
                 </span>
+                {hasActiveFilters && (
+                  <span className="whitespace-nowrap text-sm tabular-nums text-ink-muted dark:text-night-muted">
+                    · 筛选 {totalFiltered} {displayMode === "visit" ? "次" : "个"}
+                  </span>
+                )}
               </div>
               <p className="mt-1 hidden text-sm text-ink-muted dark:text-night-muted sm:block">
                 搜索、筛选并管理你的本地观看记录
